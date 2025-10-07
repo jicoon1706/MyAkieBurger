@@ -1,0 +1,13 @@
+flutter_native_splash:
+  android: true
+  ios: true
+  web: false
+
+  color: "#651610"
+  image: "assets/logoAkie.png"
+  image_scale: 0.2
+
+  android_12:
+    color: "#651610"
+    image: "assets/logoAkie.png"
+    image_scale: 0.2

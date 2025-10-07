@@ -1,4 +1,4 @@
-package com.example.myakieburger
+package com.myakieburger.sales
 
 import io.flutter.embedding.android.FlutterActivity
 
