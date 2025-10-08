@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:myakieburger/routes.dart';
+import 'package:myakieburger/widgets/custom_button.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -28,7 +29,7 @@ class _LoginPageState extends State<LoginPage> {
       // TODO: Implement login logic here
       // For now, navigate based on role
       if (_selectedRole == 'Franchisee') {
-        Navigator.pushReplacementNamed(context, Routes.franchiseeHomepage);
+        Navigator.pushReplacementNamed(context, Routes.franchiseeMainContainer);
       } else {
         Navigator.pushReplacementNamed(context, Routes.dashboard);
       }
@@ -145,27 +146,8 @@ class _LoginPageState extends State<LoginPage> {
                       const SizedBox(height: 24),
 
                       // Login button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 54,
-                        child: ElevatedButton(
-                          onPressed: _handleLogin,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFB83D2A),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          child: const Text(
-                            'Login',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
+                      CustomButton(text: 'Login', onPressed: _handleLogin),
+
                       const SizedBox(height: 40),
 
                       // Register link

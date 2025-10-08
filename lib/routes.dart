@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:myakieburger/views/manage_daily_sales/franchisee_homepage.dart';
-import 'package:myakieburger/views/manage_daily_sales/sales_order.dart';
+import 'package:myakieburger/views/manage_daily_sales/add_sales_order.dart';
 import 'package:myakieburger/views/manage_ingredients_orders/ingredient_order_page.dart';
 import 'package:myakieburger/views/manage_ingredients_orders/list_of_ingredients.dart';
 import 'package:myakieburger/views/manage_ingredients_orders/order_history.dart';
@@ -14,12 +14,15 @@ import 'package:myakieburger/views/manage_user/dashboard_page.dart';
 import 'package:myakieburger/views/manage_user/login_page.dart';
 import 'package:myakieburger/views/manage_user/register_page.dart';
 
+import 'package:myakieburger/views/manage_user/franchisee_main_container.dart';
+
 class Routes {
   static const String login = '/';
   static const String register = '/register';
   static const String dashboard = '/dashboard';
   static const String franchiseeHomepage = '/franchisee_homepage';
-  static const String salesOrder = '/sales_order';
+  static const franchiseeMainContainer = '/franchiseeMainContainer';
+  static const String addSalesOrder = '/add_sales_order';
   static const String ingredientOrderPage = '/ingredient_order_page';
   static const String listOfIngredients = '/list_of_ingredients';
   static const String orderHistory = '/order_history';
@@ -39,8 +42,12 @@ class Routes {
         return MaterialPageRoute(builder: (_) => const DashboardPage());
       case franchiseeHomepage:
         return MaterialPageRoute(builder: (_) => const FranchiseeHomepage());
-      case salesOrder:
-        return MaterialPageRoute(builder: (_) => const SalesOrder());
+      case franchiseeMainContainer:
+        return MaterialPageRoute(
+          builder: (_) => const FranchiseeMainContainer(),
+        );
+      case addSalesOrder:
+        return MaterialPageRoute(builder: (_) => const AddSalesOrder());
       case ingredientOrderPage:
         return MaterialPageRoute(builder: (_) => const IngredientOrderPage());
       case listOfIngredients:

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:myakieburger/theme/app_colors.dart';
 
 class FranchiseeHomepage extends StatefulWidget {
   const FranchiseeHomepage({super.key});
@@ -69,15 +70,15 @@ class _FranchiseeHomepageState extends State<FranchiseeHomepage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF8B2E1F),
+      backgroundColor: AppColors.primaryRed,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF8B2E1F),
+        backgroundColor: AppColors.primaryRed,
         elevation: 0,
         leading: Padding(
           padding: const EdgeInsets.only(left: 16.0, right: 4.0),
           child: CircleAvatar(
             backgroundColor: Colors.white,
-            child: Icon(Icons.person, color: Color(0xFF8B2E1F)),
+            child: Icon(Icons.person, color: AppColors.primaryRed),
           ),
         ),
         title: const Text(
@@ -98,7 +99,7 @@ class _FranchiseeHomepageState extends State<FranchiseeHomepage> {
             child: CircleAvatar(
               backgroundColor: Colors.white,
               child: IconButton(
-                icon: Icon(Icons.show_chart, color: Color(0xFF8B2E1F)),
+                icon: Icon(Icons.show_chart, color: AppColors.primaryRed),
                 onPressed: () {
                   // TODO: Navigate to analytics/chart page
                 },
@@ -202,7 +203,7 @@ class _FranchiseeHomepageState extends State<FranchiseeHomepage> {
                                 child: const Icon(
                                   Icons.fastfood,
                                   size: 35,
-                                  color: Color(0xFF8B2E1F),
+                                  color: AppColors.primaryRed,
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -263,40 +264,6 @@ class _FranchiseeHomepageState extends State<FranchiseeHomepage> {
             ),
           ],
         ),
-      ),
-
-      // 🔻 Bottom Navigation Bar
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: _onNavBarTap,
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: const Color(0xFFB83D2A),
-        selectedItemColor: Colors.white,
-        unselectedItemColor: Colors.white70,
-        showSelectedLabels: false,
-        showUnselectedLabels: false,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home, size: 28),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.description, size: 28),
-            label: 'Orders',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.add, size: 32),
-            label: 'Add',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.inventory_2, size: 28),
-            label: 'Balance',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.edit, size: 28),
-            label: 'Edit',
-          ),
-        ],
       ),
     );
   }
