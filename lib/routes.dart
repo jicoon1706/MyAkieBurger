@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import 'package:myakieburger/views/manage_daily_sales/franchisee_homepage.dart';
 import 'package:myakieburger/views/manage_daily_sales/sales_order.dart';
-import 'package:myakieburger/views/manage_ingredient_orders/ingredient_order_page.dart';
-import 'package:myakieburger/views/manage_ingredient_orders/list_of_ingredients.dart';
-import 'package:myakieburger/views/manage_ingredient_orders/order_history.dart';
+import 'package:myakieburger/views/manage_ingredients_orders/ingredient_order_page.dart';
+import 'package:myakieburger/views/manage_ingredients_orders/list_of_ingredients.dart';
+import 'package:myakieburger/views/manage_ingredients_orders/order_history.dart';
 import 'package:myakieburger/views/manage_ingredients_tracking/balanced_ingredients.dart';
 import 'package:myakieburger/views/manage_ingredients_tracking/edit_ingredients.dart';
 import 'package:myakieburger/views/manage_report/add_report.dart';
