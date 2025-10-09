@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:myakieburger/theme/app_colors.dart';
+import 'package:myakieburger/routes.dart';
 
 class BalancedIngredients extends StatefulWidget {
   const BalancedIngredients({super.key});
@@ -43,7 +44,9 @@ class _BalancedIngredientsState extends State<BalancedIngredients> {
         ),
         actions: [
           TextButton(
-            onPressed: () {},
+            onPressed: () {
+              Navigator.pushNamed(context, Routes.editIngredients);
+            },
             child: const Text(
               'Edit',
               style: TextStyle(

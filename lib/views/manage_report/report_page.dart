@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:myakieburger/theme/app_colors.dart';
+import 'package:myakieburger/widgets/lists.dart';
+import 'package:myakieburger/routes.dart';
 
 class ReportPage extends StatefulWidget {
   const ReportPage({super.key});
@@ -40,7 +42,7 @@ class _ReportPageState extends State<ReportPage> {
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.accentRed,
         onPressed: () {
-          // Add new report logic
+         Navigator.pushNamed(context, Routes.addReport);
         },
         child: const Icon(Icons.add, color: Colors.white),
       ),
@@ -52,76 +54,18 @@ class _ReportPageState extends State<ReportPage> {
           itemBuilder: (context, index) {
             final report = reports[index];
 
-            return Container(
-              margin: const EdgeInsets.symmetric(vertical: 6),
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  // Profile or logo
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(50),
-                    child: Image.asset(
-                      'assets/profile.png', // replace with your image
-                      width: 40,
-                      height: 40,
-                      fit: BoxFit.cover,
+            return Lists(
+              name: report['name']!,
+              date: report['date']!,
+              onDownload: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Downloading report from ${report['date']}...',
                     ),
                   ),
-                  const SizedBox(width: 12),
-
-                  // Text info
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Text(
-                              report['name']!,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            const Icon(
-                              Icons.check_circle,
-                              color: Colors.green,
-                              size: 16,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Date: ${report['date']}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.black54,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Download button
-                  IconButton(
-                    icon: const Icon(Icons.download, color: Colors.black),
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Downloading report from ${report['date']}...',
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
+                );
+              },
             );
           },
         ),

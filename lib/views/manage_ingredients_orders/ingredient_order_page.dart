@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:myakieburger/widgets/custom_button.dart';
 import 'package:myakieburger/theme/app_colors.dart';
+import 'package:myakieburger/routes.dart';
 
 class IngredientOrderPage extends StatefulWidget {
   const IngredientOrderPage({super.key});
@@ -159,7 +160,7 @@ class _IngredientOrderPageState extends State<IngredientOrderPage> {
               child: IconButton(
                 icon: const Icon(Icons.history, color: AppColors.lightRed),
                 onPressed: () {
-                  // TODO: Navigate to order history
+                  Navigator.pushNamed(context, Routes.orderHistory);
                 },
               ),
             ),
