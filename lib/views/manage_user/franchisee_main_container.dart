@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:myakieburger/views/manage_daily_sales/add_sales_order.dart';
-import 'package:myakieburger/views/manage_daily_sales/franchisee_homepage.dart';
+import 'package:myakieburger/views/manage_sales/add_sales_order.dart';
+import 'package:myakieburger/views/manage_user/franchisee_homepage.dart';
 import 'package:myakieburger/views/manage_ingredients_orders/ingredient_order_page.dart';
 import 'package:myakieburger/views/manage_ingredients_tracking/balanced_ingredients.dart';
 import 'package:myakieburger/views/manage_report/report_page.dart';
-import 'package:myakieburger/views/manage_daily_sales/add_sales_order.dart';
+import 'package:myakieburger/views/manage_sales/add_sales_order.dart';
 
 class FranchiseeMainContainer extends StatefulWidget {
   const FranchiseeMainContainer({super.key});
@@ -54,8 +54,10 @@ class _FranchiseeMainContainerState extends State<FranchiseeMainContainer> {
         backgroundColor: const Color(0xFFB83D2A),
         selectedItemColor: Colors.white,
         unselectedItemColor: Colors.white70,
-        showSelectedLabels: false,
-        showUnselectedLabels: false,
+        showSelectedLabels: true,
+        showUnselectedLabels: true,
+        selectedLabelStyle: const TextStyle(fontSize: 12),
+        unselectedLabelStyle: const TextStyle(fontSize: 12),
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home, size: 28),
@@ -75,7 +77,7 @@ class _FranchiseeMainContainerState extends State<FranchiseeMainContainer> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.edit, size: 28),
-            label: 'Edit',
+            label: 'Reports',
           ),
         ],
       ),

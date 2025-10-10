@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'package:myakieburger/views/manage_daily_sales/franchisee_homepage.dart';
-import 'package:myakieburger/views/manage_daily_sales/add_sales_order.dart';
+import 'package:myakieburger/views/manage_user/franchisee_homepage.dart';
+import 'package:myakieburger/views/manage_sales/add_sales_order.dart';
 import 'package:myakieburger/views/manage_ingredients_orders/ingredient_order_page.dart';
 import 'package:myakieburger/views/manage_ingredients_orders/list_of_ingredients.dart';
 import 'package:myakieburger/views/manage_ingredients_orders/order_history.dart';
@@ -10,16 +10,18 @@ import 'package:myakieburger/views/manage_ingredients_tracking/edit_ingredients.
 import 'package:myakieburger/views/manage_report/add_report.dart';
 import 'package:myakieburger/views/manage_report/franchisee_reports.dart';
 import 'package:myakieburger/views/manage_report/report_page.dart';
-import 'package:myakieburger/views/manage_user/dashboard_page.dart';
 import 'package:myakieburger/views/manage_user/login_page.dart';
 import 'package:myakieburger/views/manage_user/register_page.dart';
 
 import 'package:myakieburger/views/manage_user/franchisee_main_container.dart';
+import 'package:myakieburger/views/manage_sales/analysis_page.dart';
+
+import 'package:myakieburger/views/manage_user/admin_homepage.dart';
+import 'package:myakieburger/views/manage_user/admin_main_container.dart';
 
 class Routes {
   static const String login = '/';
   static const String register = '/register';
-  static const String dashboard = '/dashboard';
   static const String franchiseeHomepage = '/franchisee_homepage';
   static const franchiseeMainContainer = '/franchiseeMainContainer';
   static const String addSalesOrder = '/add_sales_order';
@@ -31,6 +33,10 @@ class Routes {
   static const String reportPage = '/report_page';
   static const String addReport = '/add_report';
   static const String franchiseeReports = '/franchisee_reports';
+  static const String analysisPage = '/analysis_page';
+
+  static const String adminMainContainer = '/adminMainContainer';
+  static const String adminHomepage = '/admin_homepage';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -38,14 +44,16 @@ class Routes {
         return MaterialPageRoute(builder: (_) => const LoginPage());
       case register:
         return MaterialPageRoute(builder: (_) => const RegisterPage());
-      case dashboard:
-        return MaterialPageRoute(builder: (_) => const DashboardPage());
       case franchiseeHomepage:
         return MaterialPageRoute(builder: (_) => const FranchiseeHomepage());
       case franchiseeMainContainer:
         return MaterialPageRoute(
           builder: (_) => const FranchiseeMainContainer(),
         );
+      case adminMainContainer:
+        return MaterialPageRoute(builder: (_) => const AdminMainContainer());
+      case adminHomepage:
+        return MaterialPageRoute(builder: (_) => const AdminHomepage());
       case addSalesOrder:
         return MaterialPageRoute(builder: (_) => const AddSalesOrder());
       case ingredientOrderPage:
@@ -64,6 +72,8 @@ class Routes {
         return MaterialPageRoute(builder: (_) => const AddReport());
       case franchiseeReports:
         return MaterialPageRoute(builder: (_) => const FranchiseeReports());
+      case analysisPage:
+        return MaterialPageRoute(builder: (_) => const AnalysisPage());
       default:
         return MaterialPageRoute(
           builder: (_) => Scaffold(

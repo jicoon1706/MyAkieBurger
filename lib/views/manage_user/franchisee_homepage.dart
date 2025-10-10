@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:myakieburger/theme/app_colors.dart';
+import 'package:myakieburger/routes.dart';
 
 class FranchiseeHomepage extends StatefulWidget {
   const FranchiseeHomepage({super.key});
@@ -101,7 +102,7 @@ class _FranchiseeHomepageState extends State<FranchiseeHomepage> {
               child: IconButton(
                 icon: Icon(Icons.show_chart, color: AppColors.primaryRed),
                 onPressed: () {
-                  // TODO: Navigate to analytics/chart page
+                  Navigator.pushNamed(context, Routes.analysisPage);
                 },
               ),
             ),

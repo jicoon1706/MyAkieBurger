@@ -31,7 +31,7 @@ class _LoginPageState extends State<LoginPage> {
       if (_selectedRole == 'Franchisee') {
         Navigator.pushReplacementNamed(context, Routes.franchiseeMainContainer);
       } else {
-        Navigator.pushReplacementNamed(context, Routes.dashboard);
+        Navigator.pushReplacementNamed(context, Routes.adminMainContainer);
       }
     }
   }
@@ -88,12 +88,12 @@ class _LoginPageState extends State<LoginPage> {
                             borderSide: BorderSide.none,
                           ),
                         ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter your username';
-                          }
-                          return null;
-                        },
+                        // validator: (value) {
+                        //   if (value == null || value.isEmpty) {
+                        //     return 'Please enter your username';
+                        //   }
+                        //   return null;
+                        // },
                       ),
                       const SizedBox(height: 16),
 
@@ -110,12 +110,12 @@ class _LoginPageState extends State<LoginPage> {
                             borderSide: BorderSide.none,
                           ),
                         ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter your password';
-                          }
-                          return null;
-                        },
+                        // validator: (value) {
+                        //   if (value == null || value.isEmpty) {
+                        //     return 'Please enter your password';
+                        //   }
+                        //   return null;
+                        // },
                       ),
                       const SizedBox(height: 16),
 
