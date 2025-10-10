@@ -79,7 +79,12 @@ class _FranchiseeHomepageState extends State<FranchiseeHomepage> {
           padding: const EdgeInsets.only(left: 16.0, right: 4.0),
           child: CircleAvatar(
             backgroundColor: Colors.white,
-            child: Icon(Icons.person, color: AppColors.primaryRed),
+            child: IconButton(
+              icon: Icon(Icons.person, color: AppColors.primaryRed),
+              onPressed: () {
+                Navigator.pushNamed(context, Routes.franchiseeProfile);
+              },
+            ),
           ),
         ),
         title: const Text(

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:myakieburger/views/manage_user/franchisee_homepage.dart';
+import 'package:myakieburger/views/manage_sales/franchisee_homepage.dart';
 import 'package:myakieburger/views/manage_sales/add_sales_order.dart';
 import 'package:myakieburger/views/manage_ingredients_orders/ingredient_order_page.dart';
 import 'package:myakieburger/views/manage_ingredients_orders/list_of_ingredients.dart';
@@ -16,8 +16,14 @@ import 'package:myakieburger/views/manage_user/register_page.dart';
 import 'package:myakieburger/views/manage_user/franchisee_main_container.dart';
 import 'package:myakieburger/views/manage_sales/analysis_page.dart';
 
-import 'package:myakieburger/views/manage_user/admin_homepage.dart';
+import 'package:myakieburger/views/manage_sales/admin_homepage.dart';
 import 'package:myakieburger/views/manage_user/admin_main_container.dart';
+
+import 'package:myakieburger/views/manage_sales/admin_sales_leaderboard.dart';
+import 'package:myakieburger/views/manage_sales/franchisees_sales_leaderboard.dart';
+
+import 'package:myakieburger/views/manage_user/admin_profile.dart';
+import 'package:myakieburger/views/manage_user/franchisee_profile.dart';
 
 class Routes {
   static const String login = '/';
@@ -37,6 +43,13 @@ class Routes {
 
   static const String adminMainContainer = '/adminMainContainer';
   static const String adminHomepage = '/admin_homepage';
+
+  static const String adminSalesLeaderboard = '/admin_sales_leaderboard';
+  static const String franchiseesSalesLeaderboard =
+      '/franchisees_sales_leaderboard';
+
+  static const String adminProfile = '/admin_profile';
+  static const String franchiseeProfile = '/franchisee_profile';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -74,6 +87,15 @@ class Routes {
         return MaterialPageRoute(builder: (_) => const FranchiseeReports());
       case analysisPage:
         return MaterialPageRoute(builder: (_) => const AnalysisPage());
+      case adminSalesLeaderboard:
+        return MaterialPageRoute(builder: (_) => const AdminSalesLeaderboard());
+      case franchiseesSalesLeaderboard:
+        return MaterialPageRoute(
+            builder: (_) => const FranchiseesSalesLeaderboard());
+      case adminProfile:
+        return MaterialPageRoute(builder: (_) => const AdminProfile());
+      case franchiseeProfile:
+        return MaterialPageRoute(builder: (_) => const FranchiseeProfile());
       default:
         return MaterialPageRoute(
           builder: (_) => Scaffold(

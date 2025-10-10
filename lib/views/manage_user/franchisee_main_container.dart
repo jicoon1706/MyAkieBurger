@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:myakieburger/views/manage_sales/add_sales_order.dart';
-import 'package:myakieburger/views/manage_user/franchisee_homepage.dart';
+import 'package:myakieburger/views/manage_sales/franchisee_homepage.dart';
 import 'package:myakieburger/views/manage_ingredients_orders/ingredient_order_page.dart';
 import 'package:myakieburger/views/manage_ingredients_tracking/balanced_ingredients.dart';
 import 'package:myakieburger/views/manage_report/report_page.dart';

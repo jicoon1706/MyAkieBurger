@@ -1,6 +1,7 @@
 // admin_homepage.dart
 import 'package:flutter/material.dart';
 import 'package:myakieburger/theme/app_colors.dart';
+import 'package:myakieburger/routes.dart';
 
 class AdminHomepage extends StatefulWidget {
   const AdminHomepage({super.key});
@@ -27,7 +28,12 @@ class _AdminHomepageState extends State<AdminHomepage> {
           padding: const EdgeInsets.only(left: 16.0, right: 4.0),
           child: CircleAvatar(
             backgroundColor: Colors.white,
-            child: Icon(Icons.admin_panel_settings, color: AppColors.admin),
+            child: IconButton(
+              icon: Icon(Icons.admin_panel_settings, color: AppColors.admin),
+              onPressed: () {
+                Navigator.pushNamed(context, Routes.adminProfile);
+              },
+            ),
           ),
         ),
         title: const Text(
@@ -146,7 +152,10 @@ class _AdminHomepageState extends State<AdminHomepage> {
                   ),
                   TextButton(
                     onPressed: () {
-                      // TODO: Navigate to full rankings
+                      Navigator.pushNamed(
+                        context,
+                        Routes.adminSalesLeaderboard,
+                      );
                     },
                     child: const Text(
                       'View All',

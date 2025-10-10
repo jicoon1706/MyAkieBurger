@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:myakieburger/theme/app_colors.dart';
+import 'package:myakieburger/routes.dart';
 
 class AnalysisPage extends StatefulWidget {
   const AnalysisPage({super.key});
@@ -178,11 +179,11 @@ class _AnalysisPageState extends State<AnalysisPage> {
               ),
               const SizedBox(height: 24),
 
-              // Sales Ranking Header
+              // Sales Ranking Header + "View All"
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: const [
-                  Text(
+                children: [
+                  const Text(
                     'Sales Ranking',
                     style: TextStyle(
                       color: Colors.white,
@@ -190,16 +191,38 @@ class _AnalysisPageState extends State<AnalysisPage> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  Text(
-                    'My Rank : 20',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  Row(
+                    children: [
+                      const Text(
+                        'My Rank : 20',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pushNamed(
+                            context,
+                            Routes.franchiseesSalesLeaderboard,
+                          );
+                        },
+                        child: const Text(
+                          'View All',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
+
               const SizedBox(height: 16),
 
               // Ranking List

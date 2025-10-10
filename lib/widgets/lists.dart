@@ -7,6 +7,7 @@ class Lists extends StatelessWidget {
   final VoidCallback? onDownload;
   final String imagePath;
   final bool useCalendarIcon; // 👈 new parameter
+  final bool useProfileIcon; // 👈 new parameter
 
   const Lists({
     super.key,
@@ -15,6 +16,8 @@ class Lists extends StatelessWidget {
     this.onDownload,
     this.imagePath = 'assets/profile.png',
     this.useCalendarIcon = false, // 👈 default = false
+    this.useProfileIcon = false, // 👈 default = false
+    
   });
 
   @override
@@ -42,6 +45,20 @@ class Lists extends StatelessWidget {
                 Icons.calendar_today,
                 color: AppColors.accentRed,
                 size: 22,
+              ),
+            )
+            else if (useProfileIcon)
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(50),
+              ),
+              child: const Icon(
+                Icons.person,
+                color: AppColors.primaryRed,
+                size: 24,
               ),
             )
           else
