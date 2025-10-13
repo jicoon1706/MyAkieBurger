@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:myakieburger/theme/app_colors.dart';
+import 'package:myakieburger/routes.dart';
 
 class FranchiseeProfile extends StatefulWidget {
   const FranchiseeProfile({super.key});
@@ -45,7 +46,7 @@ class _FranchiseeProfileState extends State<FranchiseeProfile> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              // Add logout logic
+              Navigator.pushNamed(context, Routes.login);
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Logout'),

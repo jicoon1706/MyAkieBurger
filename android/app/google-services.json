@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "219935553481",
+    "project_id": "myakieburger",
+    "storage_bucket": "myakieburger.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:219935553481:android:45f83c54093390a2235a18",
+        "android_client_info": {
+          "package_name": "com.example.myakieburger"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAYS86CQSAWgsEpzKSQuG-skKWQK_S-mvA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
