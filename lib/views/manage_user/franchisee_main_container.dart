@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:myakieburger/views/manage_sales/add_sales_order.dart';
+import 'package:myakieburger/views/manage_sales/add_meal_order.dart';
 import 'package:myakieburger/views/manage_sales/franchisee_homepage.dart';
 import 'package:myakieburger/views/manage_ingredients_orders/ingredient_order_page.dart';
 import 'package:myakieburger/views/manage_ingredients_tracking/balanced_ingredients.dart';
 import 'package:myakieburger/views/manage_report/report_page.dart';
-import 'package:myakieburger/views/manage_sales/add_sales_order.dart';
+import 'package:myakieburger/views/manage_sales/add_meal_order.dart';
 
 class FranchiseeMainContainer extends StatefulWidget {
   const FranchiseeMainContainer({super.key});
@@ -20,7 +20,7 @@ class _FranchiseeMainContainerState extends State<FranchiseeMainContainer> {
   final List<Widget> _pages = [
     const FranchiseeHomepage(),
     const IngredientOrderPage(),
-    const AddSalesOrder(), // For Add button
+    const AddMealOrder(), // For Add button
     const BalancedIngredients(),
     const ReportPage(),
   ];
@@ -32,7 +32,7 @@ class _FranchiseeMainContainerState extends State<FranchiseeMainContainer> {
         context: context,
         backgroundColor: Colors.transparent,
         isScrollControlled: true,
-        builder: (context) => const AddSalesOrder(),
+        builder: (context) => const AddMealOrder(),
       );
       return;
     }

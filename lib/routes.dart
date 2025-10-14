@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:myakieburger/views/manage_sales/franchisee_homepage.dart';
-import 'package:myakieburger/views/manage_sales/add_sales_order.dart';
+import 'package:myakieburger/views/manage_sales/add_meal_order.dart';
 import 'package:myakieburger/views/manage_ingredients_orders/ingredient_order_page.dart';
 import 'package:myakieburger/views/manage_ingredients_orders/list_of_ingredients.dart';
 import 'package:myakieburger/views/manage_ingredients_orders/order_history.dart';
@@ -30,7 +30,7 @@ class Routes {
   static const String register = '/register';
   static const String franchiseeHomepage = '/franchisee_homepage';
   static const franchiseeMainContainer = '/franchiseeMainContainer';
-  static const String addSalesOrder = '/add_sales_order';
+  static const String addMealOrder = '/add_meal_order';
   static const String ingredientOrderPage = '/ingredient_order_page';
   static const String listOfIngredients = '/list_of_ingredients';
   static const String orderHistory = '/order_history';
@@ -67,8 +67,8 @@ class Routes {
         return MaterialPageRoute(builder: (_) => const AdminMainContainer());
       case adminHomepage:
         return MaterialPageRoute(builder: (_) => const AdminHomepage());
-      case addSalesOrder:
-        return MaterialPageRoute(builder: (_) => const AddSalesOrder());
+      case addMealOrder:
+        return MaterialPageRoute(builder: (_) => const AddMealOrder());
       case ingredientOrderPage:
         return MaterialPageRoute(builder: (_) => const IngredientOrderPage());
       case listOfIngredients:
@@ -91,7 +91,8 @@ class Routes {
         return MaterialPageRoute(builder: (_) => const AdminSalesLeaderboard());
       case franchiseesSalesLeaderboard:
         return MaterialPageRoute(
-            builder: (_) => const FranchiseesSalesLeaderboard());
+          builder: (_) => const FranchiseesSalesLeaderboard(),
+        );
       case adminProfile:
         return MaterialPageRoute(builder: (_) => const AdminProfile());
       case franchiseeProfile:

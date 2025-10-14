@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:myakieburger/theme/app_colors.dart';
 import 'package:myakieburger/routes.dart';
+import 'package:myakieburger/providers/meal_order_controller.dart';
+import 'package:myakieburger/services/auth_service.dart';
 
 class FranchiseeHomepage extends StatefulWidget {
   const FranchiseeHomepage({super.key});
@@ -10,66 +13,51 @@ class FranchiseeHomepage extends StatefulWidget {
 }
 
 class _FranchiseeHomepageState extends State<FranchiseeHomepage> {
-  int _selectedIndex = 0;
+  final MealOrderController _controller = MealOrderController();
 
-  final List<Map<String, dynamic>> _orders = [
-    {
-      'item': '2 Hotdog',
-      'addon': 'No Add-On',
-      'price': 'RM 20.00',
-      'time': '4:45 PM',
-    },
-    {
-      'item': '2 Biasa Ayam',
-      'addon': 'No Add-On',
-      'price': 'RM 21.00',
-      'time': '3:45 PM',
-    },
-    {
-      'item': '2 Special Daging',
-      'addon': 'Add-On 1x Cheese',
-      'price': 'RM 15.00',
-      'time': '2:45 PM',
-    },
-    {
-      'item': '2 Hotdog',
-      'addon': 'No Add-On',
-      'price': 'RM 20.00',
-      'time': '1:45 PM',
-    },
-  ];
+  double _totalSales = 0;
+  String _weekRange = '';
+  String? _franchiseeId;
+  double _todayTotal = 0;
+  List<Map<String, dynamic>> _todayOrders = [];
+  bool _isLoading = true;
 
-  void _onNavBarTap(int index) {
+  @override
+  void initState() {
+    super.initState();
+    _loadSalesData();
+  }
+
+  // Fix in franchisee_homepage.dart
+
+  Future<void> _loadSalesData() async {
+    final franchiseeId = await getLoggedInUserId();
+    if (franchiseeId == null) return;
+
+    final now = DateTime.now();
+    final weekStart = now.subtract(Duration(days: now.weekday - 1));
+    final weekEnd = weekStart.add(const Duration(days: 6));
+
+    final totalSales = await _controller.getWeeklySales(franchiseeId);
+    final todayData = await _controller.getTodayOrders(franchiseeId);
+
     setState(() {
-      _selectedIndex = index;
+      _franchiseeId = franchiseeId;
+      _totalSales = totalSales;
+      // ✅ Fix: Convert to double safely
+      final total = todayData['total'];
+      _todayTotal = (total is int) ? total.toDouble() : (total ?? 0.0);
+      _todayOrders = List<Map<String, dynamic>>.from(todayData['orders'] ?? []);
+      _weekRange =
+          "${DateFormat('dd/MM').format(weekStart)} - ${DateFormat('dd/MM').format(weekEnd)}";
+      _isLoading = false;
     });
-
-    // Navigate based on selected tab
-    switch (index) {
-      case 0:
-        // Already on home
-        break;
-      case 1:
-        // Orders - Navigate to Ingredient Order Page
-        Navigator.pushNamed(context, '/ingredient_order_page');
-        break;
-      case 2:
-        // Add button
-        // TODO: Implement add functionality
-        break;
-      case 3:
-        // Balance - Navigate to Balanced Ingredients
-        Navigator.pushNamed(context, '/balanced_ingredients');
-        break;
-      case 4:
-        // Edit - Navigate to Edit Ingredients
-        Navigator.pushNamed(context, '/edit_ingredients');
-        break;
-    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final todayDate = DateFormat('dd/MM').format(DateTime.now());
+
     return Scaffold(
       backgroundColor: AppColors.primaryRed,
       appBar: AppBar(
@@ -120,7 +108,7 @@ class _FranchiseeHomepageState extends State<FranchiseeHomepage> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // Total Sales Card
+            // 🧾 Total Sales Card (Dynamic)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(24),
@@ -130,15 +118,17 @@ class _FranchiseeHomepageState extends State<FranchiseeHomepage> {
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
+                children: [
                   Text(
-                    'Total Sales (06/07 - 12/07)',
-                    style: TextStyle(color: Colors.white, fontSize: 16),
+                    _weekRange.isEmpty
+                        ? 'Total Sales (Loading...)'
+                        : 'Total Sales ($_weekRange)',
+                    style: const TextStyle(color: Colors.white, fontSize: 16),
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   Text(
-                    'RM1500.00',
-                    style: TextStyle(
+                    'RM ${_totalSales.toStringAsFixed(2)}',
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 48,
                       fontWeight: FontWeight.bold,
@@ -152,121 +142,141 @@ class _FranchiseeHomepageState extends State<FranchiseeHomepage> {
 
             // Today's Order Section
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Today's Order 12/5",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
-                      Text(
-                        'Sales Orders',
-                        style: TextStyle(color: Colors.white, fontSize: 16),
-                      ),
-                      Text(
-                        'RM 500',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Order List
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: _orders.length,
-                      itemBuilder: (context, index) {
-                        final order = _orders[index];
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
+              child: _isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(color: Colors.white),
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 👇 Auto display today’s date
+                        Text(
+                          "Today's Order $todayDate",
+                          style: const TextStyle(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
                           ),
-                          child: Row(
-                            children: [
-                              // Burger Icon
-                              Container(
-                                width: 60,
-                                height: 60,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[300],
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.fastfood,
-                                  size: 35,
-                                  color: AppColors.primaryRed,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
+                        ),
+                        const SizedBox(height: 12),
 
-                              // Order Details
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      order['item'],
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      order['addon'],
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Sales Orders',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
                               ),
+                            ),
+                            Text(
+                              'RM ${_todayTotal.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
 
-                              // Price and Time
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    order['price'],
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                        const SizedBox(height: 16),
+
+                        // 🧾 Order List
+                        Expanded(
+                          child: _todayOrders.isEmpty
+                              ? const Center(
+                                  child: Text(
+                                    'No orders for today',
+                                    style: TextStyle(color: Colors.white70),
                                   ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    order['time'],
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        );
-                      },
+                                )
+                              : ListView.builder(
+                                  itemCount: _todayOrders.length,
+                                  itemBuilder: (context, index) {
+                                    final order = _todayOrders[index];
+                                    return Container(
+                                      margin: const EdgeInsets.only(bottom: 12),
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          // Burger Icon
+                                          Container(
+                                            width: 60,
+                                            height: 60,
+                                            decoration: BoxDecoration(
+                                              color: Colors.grey[300],
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(
+                                              Icons.fastfood,
+                                              size: 35,
+                                              color: AppColors.primaryRed,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+
+                                          // Order Details
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  order['item'] ??
+                                                      'Unknown Item',
+                                                  style: const TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  order['addon'] ?? '',
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    color: Colors.grey[600],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+
+                                          // Price and Time
+                                          Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.end,
+                                            children: [
+                                              Text(
+                                                order['price'] ?? 'RM 0.00',
+                                                style: const TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                order['time'] ?? '',
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  color: Colors.grey[600],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
             ),
           ],
         ),
