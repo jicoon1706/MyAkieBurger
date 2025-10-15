@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:myakieburger/theme/app_colors.dart';
 import 'package:myakieburger/routes.dart';
+import 'package:myakieburger/domains/ingredients_model.dart';
+import 'package:myakieburger/services/auth_service.dart';
 
 class BalancedIngredients extends StatefulWidget {
   const BalancedIngredients({super.key});
@@ -10,25 +13,22 @@ class BalancedIngredients extends StatefulWidget {
 }
 
 class _BalancedIngredientsState extends State<BalancedIngredients> {
-  final List<Map<String, dynamic>> ingredients = [
-    {'name': 'Roti (pieces)', 'balance': 30},
-    {'name': 'Daging (80g)', 'balance': 30},
-    {'name': 'Ayam (80g)', 'balance': 30},
-    {'name': 'Daging Smoky (100g)', 'balance': 30},
-    {'name': 'Kambing (70g)', 'balance': 30},
-    {'name': 'Rusa', 'balance': 30},
-    {'name': 'Arnab', 'balance': 30},
-    {'name': 'Itik', 'balance': 30},
-    {'name': 'Roti Hotdog', 'balance': 30},
-    {'name': 'Sosej', 'balance': 30},
-    {'name': 'Roti Oblong', 'balance': 30},
-    {'name': 'Kambing Oblong', 'balance': 30},
-    {'name': 'Ayam Oblong', 'balance': 30},
-    {'name': 'Daging Oblong', 'balance': 30},
-    {'name': 'Cheese (pieces)', 'balance': 30},
-    {'name': 'Telur', 'balance': 30},
-    {'name': 'Benjo', 'balance': 30},
-  ];
+  String? franchiseeId;
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFranchiseeId();
+  }
+
+  Future<void> _loadFranchiseeId() async {
+    final id = await getLoggedInUserId();
+    setState(() {
+      franchiseeId = id;
+      isLoading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -57,62 +57,112 @@ class _BalancedIngredientsState extends State<BalancedIngredients> {
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: ListView.separated(
-            padding: const EdgeInsets.all(16.0),
-            itemCount: ingredients.length + 1,
-            separatorBuilder: (context, index) =>
-                const Divider(height: 1, color: Colors.black54),
-            itemBuilder: (context, index) {
-              if (index == 0) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Ingredients Name',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      Text(
-                        'Balance',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              final item = ingredients[index - 1];
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(item['name'], style: const TextStyle(fontSize: 15)),
-                    Text(
-                      item['balance'].toString(),
-                      style: const TextStyle(fontSize: 15),
-                    ),
-                  ],
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : franchiseeId == null
+          ? const Center(
+              child: Text(
+                'User not logged in.',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            )
+          : Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              );
-            },
-          ),
-        ),
-      ),
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(franchiseeId)
+                      .collection('ingredients')
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                      return const Center(
+                        child: Text(
+                          'No ingredients found',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      );
+                    }
+
+                    final docs = snapshot.data!.docs;
+                    final ingredients = docs
+                        .map(
+                          (doc) => IngredientModel.fromMap(
+                            doc.id,
+                            doc.data() as Map<String, dynamic>,
+                          ),
+                        )
+                        .toList();
+
+                    return ListView.separated(
+                      padding: const EdgeInsets.all(16.0),
+                      itemCount: ingredients.length + 1,
+                      separatorBuilder: (context, index) =>
+                          const Divider(height: 1, color: Colors.black54),
+                      itemBuilder: (context, index) {
+                        if (index == 0) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Ingredients Name',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                Text(
+                                  'Balance',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+
+                        final item = ingredients[index - 1];
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  item.name,
+                                  style: const TextStyle(fontSize: 15),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              Text(
+                                item.balance.toString(),
+                                style: const TextStyle(fontSize: 15),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ),
     );
   }
 }
