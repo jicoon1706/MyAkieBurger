@@ -2,12 +2,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:myakieburger/domains/meal_order_model.dart';
+import 'package:myakieburger/providers/ingredients_controller.dart';
 
 class MealOrderController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final IngredientsController _ingredientsController = IngredientsController();
 
-  // lib/providers/meal_order_controller.dart
-
+  /// 🔹 Save meal order and deduct ingredients
   Future<void> saveMealOrder(String franchiseeId, MealOrderModel order) async {
     try {
       final orderRef = _firestore.collection('meal_orders_all').doc();
@@ -20,10 +21,12 @@ class MealOrderController {
         'mealOrderId': orderRef.id,
         'franchiseeId': franchiseeId,
         'franchisee_name': order.franchiseeName,
-        'total_amount': order.totalAmount.toDouble(), // ✅ Ensure double
+        'total_amount': order.totalAmount.toDouble(),
         'meals': order.meals,
         'notes': order.notes,
-        'created_at': formattedDate,
+        'created_at': formattedDate, // readable version
+        'created_at_timestamp':
+            FieldValue.serverTimestamp(), // sortable version
       });
 
       await _firestore
@@ -33,13 +36,21 @@ class MealOrderController {
           .doc('meal_orders')
           .set({orderRef.id: orderRef.id}, SetOptions(merge: true));
 
+      // 🔹 Deduct ingredients automatically
+      await _ingredientsController.deductIngredientsForOrder(
+        franchiseeId,
+        order.meals,
+      );
+
       print("✅ Meal order saved for $franchiseeId at $formattedDate");
+      print("✅ Ingredients deducted successfully");
     } catch (e) {
       print("❌ Error saving meal order: $e");
+      rethrow;
     }
   }
 
-  // ✅ Fetch total weekly sales
+  /// 🔹 Fetch total weekly sales
   Future<double> getWeeklySales(String franchiseeId) async {
     final now = DateTime.now();
     final weekStart = now.subtract(Duration(days: now.weekday - 1));
@@ -74,7 +85,7 @@ class MealOrderController {
     }
   }
 
-  // ✅ Fetch today's orders
+  /// 🔹 Fetch today's orders
   Future<Map<String, dynamic>> getTodayOrders(String franchiseeId) async {
     final now = DateTime.now();
     final todayString = DateFormat('yyyy-MM-dd').format(now);
@@ -84,6 +95,7 @@ class MealOrderController {
       final snapshot = await _firestore
           .collection('meal_orders_all')
           .where('franchiseeId', isEqualTo: franchiseeId)
+          .orderBy('created_at_timestamp', descending: true)
           .get();
 
       double todayTotal = 0.0;
@@ -127,10 +139,7 @@ class MealOrderController {
         }
       }
 
-      return {
-        'total': todayTotal, // Already a double
-        'orders': todayOrders,
-      };
+      return {'total': todayTotal, 'orders': todayOrders};
     } catch (e) {
       print("❌ Error fetching today's orders: $e");
       return {'total': 0.0, 'orders': []};

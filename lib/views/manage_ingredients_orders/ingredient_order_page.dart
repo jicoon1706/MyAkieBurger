@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:myakieburger/widgets/custom_button.dart';
 import 'package:myakieburger/theme/app_colors.dart';
 import 'package:myakieburger/routes.dart';
+import 'package:myakieburger/providers/ingredients_order_controller.dart';
+import 'package:myakieburger/domains/ingredients_order_model.dart';
+import 'package:myakieburger/services/auth_service.dart'; // for getLoggedInUserId()
 
 class IngredientOrderPage extends StatefulWidget {
   const IngredientOrderPage({super.key});
@@ -119,6 +122,11 @@ class _IngredientOrderPageState extends State<IngredientOrderPage> {
     },
   ];
 
+  final IngredientsOrderController _orderController =
+      IngredientsOrderController();
+
+  final TextEditingController _notesController = TextEditingController();
+
   void _incrementQuantity(int index) {
     setState(() {
       if (_ingredients[index]['quantity'] < _ingredients[index]['max']) {
@@ -136,13 +144,19 @@ class _IngredientOrderPageState extends State<IngredientOrderPage> {
   }
 
   @override
+  void dispose() {
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.primaryRed,
       appBar: AppBar(
         backgroundColor: AppColors.primaryRed,
         elevation: 0,
-        leading: const SizedBox(), // No back button
+        leading: const SizedBox(),
         title: const Text(
           'Ingredient Order',
           style: TextStyle(
@@ -312,15 +326,78 @@ class _IngredientOrderPageState extends State<IngredientOrderPage> {
 
               const SizedBox(height: 24),
 
-              // Submit Order Button (scrolls with grid)
+              // 🟢 Notes Input Field
+              TextField(
+                controller: _notesController,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: Colors.white,
+                  labelText: 'Notes (optional)',
+                  hintText: 'Write any special request or notes here...',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Submit Order Button
               CustomButton(
                 text: 'Submit Order',
-                onPressed: () {
+                onPressed: () async {
+                  final franchiseeId = await getLoggedInUserId();
+                  if (franchiseeId == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Error: Franchisee not found'),
+                      ),
+                    );
+                    return;
+                  }
+
+                  final franchiseeName = 'Akmal Burger Batu Pahat';
+                  final selectedIngredients = _ingredients
+                      .where((i) => i['quantity'] > 0)
+                      .map(
+                        (i) => {
+                          'ingredient_id': i['name'].toLowerCase().replaceAll(
+                            ' ',
+                            '_',
+                          ),
+                          'ingredient_name': i['name'],
+                          'unit_price': 1.50, // TODO: dynamic pricing
+                          'quantity': i['quantity'],
+                          'subtotal': i['quantity'] * 1.50,
+                        },
+                      )
+                      .toList();
+
+                  final totalAmount = selectedIngredients.fold<double>(
+                    0,
+                    (sum, item) => sum + (item['subtotal'] ?? 0),
+                  );
+
+                  final newOrder = IngredientsOrderModel(
+                    franchiseeId: franchiseeId,
+                    franchiseeName: franchiseeName,
+                    ingredients: selectedIngredients,
+                    totalAmount: totalAmount,
+                    notes: _notesController.text.trim().isEmpty
+                        ? 'No notes provided'
+                        : _notesController.text.trim(),
+                  );
+
+                  await _orderController.saveIngredientsOrder(newOrder);
+
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Order submitted successfully!'),
                     ),
                   );
+
+                  _notesController.clear();
                 },
               ),
 

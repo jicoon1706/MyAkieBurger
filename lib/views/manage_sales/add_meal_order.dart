@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:myakieburger/theme/app_colors.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:myakieburger/services/auth_service.dart';
 import 'package:myakieburger/providers/user_controller.dart';
 import 'package:myakieburger/domains/user_model.dart';
 import 'package:myakieburger/providers/meal_order_controller.dart';
@@ -17,6 +17,7 @@ class _AddMealOrderState extends State<AddMealOrder> {
   String selectedCategory = 'Chicken';
   String? franchiseeId;
   String? franchiseeName;
+  bool isLoadingUser = true;
   List<OrderItem> orderItems = [];
   OrderItem? pendingItem;
   final TextEditingController notesController = TextEditingController();
@@ -42,7 +43,6 @@ class _AddMealOrderState extends State<AddMealOrder> {
     MenuItem('Rusa', 'Exotic', 5.00),
     MenuItem('Arnab', 'Exotic', 5.00),
     MenuItem('Kambing', 'Exotic', 5.00),
-    // MenuItem('Burung Unta', 'Exotic', 5.00),
 
     // 🍔 Others
     MenuItem('Oblong Kambing', 'Others', 8.50),
@@ -63,7 +63,7 @@ class _AddMealOrderState extends State<AddMealOrder> {
   @override
   void initState() {
     super.initState();
-    _loadFranchiseeInfo(); // ✅ Load user info when widget is initialized
+    _loadFranchiseeInfo();
   }
 
   @override
@@ -73,17 +73,37 @@ class _AddMealOrderState extends State<AddMealOrder> {
   }
 
   Future<void> _loadFranchiseeInfo() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedId = prefs.getString('franchiseeId');
-    if (savedId != null) {
-      final userController = UserController();
-      final user = await userController.getUserById(savedId);
-      if (user != null) {
+    try {
+      final userId = await getLoggedInUserId();
+      
+      if (userId != null) {
+        final userController = UserController();
+        final user = await userController.getUserById(userId);
+        
+        if (user != null) {
+          setState(() {
+            franchiseeId = user.id;
+            franchiseeName = user.stallName;
+            isLoadingUser = false;
+          });
+          print('✅ Franchisee loaded: ${user.stallName} (ID: ${user.id})');
+        } else {
+          setState(() {
+            isLoadingUser = false;
+          });
+          print('⚠️ User not found in database');
+        }
+      } else {
         setState(() {
-          franchiseeId = user.id;
-          franchiseeName = user.stallName;
+          isLoadingUser = false;
         });
+        print('⚠️ No logged-in user ID found');
       }
+    } catch (e) {
+      setState(() {
+        isLoadingUser = false;
+      });
+      print('❌ Error loading franchisee info: $e');
     }
   }
 
@@ -176,9 +196,170 @@ class _AddMealOrderState extends State<AddMealOrder> {
     });
   }
 
+  Future<void> _completeOrder() async {
+    if (franchiseeId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error: User not logged in. Please restart the app.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (orderItems.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please add at least one item to your order'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
+      );
+
+      final controller = MealOrderController();
+
+      final meals = orderItems.map((item) {
+        return {
+          'category': _getCategoryForItem(item.name),
+          'menu_name': item.name,
+          'base_price': item.basePrice.toDouble(),
+          'add_ons': item.addOns.map((a) {
+            final addOnData = addOns.firstWhere(
+              (x) => x.name == a,
+              orElse: () => AddOn(a, a, 0.0),
+            );
+
+            final unitPrice = addOnData.price.toDouble();
+            return {
+              'name': a,
+              'unit_price': unitPrice,
+              'quantity': 1,
+              'subtotal': (unitPrice * 1).toDouble(),
+            };
+          }).toList(),
+          'quantity': item.quantity,
+          'subtotal': calculateItemPrice(item).toDouble(),
+        };
+      }).toList();
+
+      final newOrder = MealOrderModel(
+        franchiseeName: franchiseeName ?? 'Unknown Stall',
+        totalAmount: calculateTotalPrice(),
+        meals: meals,
+        notes: notesController.text.trim(),
+        createdAt: DateTime.now(),
+      );
+
+      await controller.saveMealOrder(franchiseeId!, newOrder);
+
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Order completed successfully!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+
+      // Close the order sheet
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      // Close loading dialog if still showing
+      if (mounted) Navigator.pop(context);
+
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+      print('❌ Error completing order: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final totalPrice = calculateTotalPrice();
+
+    if (isLoadingUser) {
+      return Container(
+        height: MediaQuery.of(context).size.height * 0.85,
+        decoration: const BoxDecoration(
+          color: AppColors.primaryRed,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: const Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
+      );
+    }
+
+    if (franchiseeId == null) {
+      return Container(
+        height: MediaQuery.of(context).size.height * 0.85,
+        decoration: const BoxDecoration(
+          color: AppColors.primaryRed,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white, size: 64),
+              const SizedBox(height: 16),
+              const Text(
+                'User Not Logged In',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Please log in again to continue',
+                style: TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 32,
+                    vertical: 12,
+                  ),
+                ),
+                child: const Text(
+                  'Close',
+                  style: TextStyle(color: AppColors.primaryRed),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.85,
@@ -528,7 +709,6 @@ class _AddMealOrderState extends State<AddMealOrder> {
                                           fontSize: 14,
                                         ),
                                       ),
-
                                       if (item.addOns.isNotEmpty)
                                         Text(
                                           '+ ${item.addOns.join(', ')}',
@@ -590,15 +770,15 @@ class _AddMealOrderState extends State<AddMealOrder> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    const Row(
                       children: [
                         Icon(
                           Icons.note_alt_outlined,
-                          color: const Color(0xFFB83D2A),
+                          color: Color(0xFFB83D2A),
                           size: 20,
                         ),
-                        const SizedBox(width: 8),
-                        const Text(
+                        SizedBox(width: 8),
+                        Text(
                           'Order Notes (Optional)',
                           style: TextStyle(
                             fontSize: 14,
@@ -644,51 +824,7 @@ class _AddMealOrderState extends State<AddMealOrder> {
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: orderItems.isEmpty || franchiseeId == null
-                      ? null
-                      : () async {
-                          final controller = MealOrderController();
-
-                          final meals = orderItems.map((item) {
-                            return {
-                              'category': _getCategoryForItem(item.name),
-                              'menu_name': item.name,
-                              'base_price': item.basePrice.toDouble(),
-                              'add_ons': item.addOns.map((a) {
-                                final addOnData = addOns.firstWhere(
-                                  (x) => x.name == a,
-                                  orElse: () => AddOn(a, a, 0.0),
-                                );
-
-                                final unitPrice = addOnData.price.toDouble();
-                                return {
-                                  'name': a,
-                                  'unit_price': unitPrice,
-                                  'quantity': 1,
-                                  'subtotal': (unitPrice * 1).toDouble(),
-                                };
-                              }).toList(),
-
-                              'quantity': item.quantity,
-                              'subtotal': calculateItemPrice(item).toDouble(),
-                            };
-                          }).toList();
-
-                          final newOrder = MealOrderModel(
-                            franchiseeName: franchiseeName ?? 'Unknown Stall',
-                            totalAmount: calculateTotalPrice(),
-                            meals: meals,
-                            notes: notesController.text.trim(),
-                            createdAt: DateTime.now(),
-                          );
-
-                          await controller.saveMealOrder(
-                            franchiseeId!,
-                            newOrder,
-                          );
-                          Navigator.pop(context);
-                        },
-
+                  onPressed: orderItems.isEmpty ? null : _completeOrder,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFB83D2A),
                     disabledBackgroundColor: Colors.grey,
