@@ -22,39 +22,41 @@ class _AddMealOrderState extends State<AddMealOrder> {
   OrderItem? pendingItem;
   final TextEditingController notesController = TextEditingController();
 
-  final List<String> categories = ['Chicken', 'Meat', 'Exotic', 'Others'];
+  final List<String> categories = ['Chicken', 'Meat', 'Others'];
 
   final List<MenuItem> menuItems = [
     // 🐔 Chicken
-    MenuItem('Biasa', 'Chicken', 4.00),
-    MenuItem('Special', 'Chicken', 5.20),
-    MenuItem('Double', 'Chicken', 6.00),
-    MenuItem('D. Special', 'Chicken', 7.20),
-    MenuItem('Oblong', 'Chicken', 6.50),
+    MenuItem('Biasa', 'Chicken', 4.50),
+    MenuItem('Special', 'Chicken', 5.70),
+    MenuItem('Double', 'Chicken', 6.80),
+    MenuItem('D. Special', 'Chicken', 8.00),
+    MenuItem('Oblong', 'Chicken', 7.00),
 
     // 🥩 Meat
-    MenuItem('Biasa', 'Meat', 4.00),
-    MenuItem('Special', 'Meat', 5.20),
-    MenuItem('Double', 'Meat', 6.00),
-    MenuItem('D. Special', 'Meat', 7.20),
-    MenuItem('Oblong', 'Meat', 6.50),
-
-    // 🐗 Exotic (was Benjo)
-    MenuItem('Rusa', 'Exotic', 5.00),
-    MenuItem('Arnab', 'Exotic', 5.00),
-    MenuItem('Kambing', 'Exotic', 5.00),
+    MenuItem('Biasa', 'Meat', 4.50),
+    MenuItem('Special', 'Meat', 5.70),
+    MenuItem('Double', 'Meat', 6.80),
+    MenuItem('D. Special', 'Meat', 8.00),
+    MenuItem('Oblong', 'Meat', 7.00),
 
     // 🍔 Others
-    MenuItem('Oblong Kambing', 'Others', 8.50),
-    MenuItem('Hotdog', 'Others', 2.50),
-    MenuItem('Hotdog Special', 'Others', 3.70),
-    MenuItem('Benjo', 'Others', 2.80),
+    MenuItem('Smokey', 'Others', 8.00),
+    MenuItem('Kambing', 'Others', 5.50),
+    MenuItem('Oblong Kambing', 'Others', 9.00),
+    MenuItem('Hotdog', 'Others', 3.00),
+    MenuItem('Benjo', 'Others', 3.00),
   ];
 
   final List<AddOn> addOns = [
     AddOn('None', 'No Add-On', 0.00),
-    AddOn('Daging', 'Daging', 2.40),
-    AddOn('Ayam', 'Ayam', 2.40),
+    AddOn('Daging', 'Daging', 3.00),
+    AddOn('Ayam', 'Ayam', 3.00),
+    AddOn('Daging Smokey', 'Daging Smokey', 5.50),
+    AddOn('Daging Exotic', 'Daging Exotic', 4.00),
+    AddOn('Daging Kambing', 'Daging Kambing', 4.00),
+    AddOn('Daging Oblong', 'Daging Oblong', 5.00),
+    AddOn('Ayam Oblong', 'Ayam Oblong', 5.00),
+    AddOn('Kambing Oblong', 'Kambing Oblong', 7.50),
     AddOn('Sosej', 'Sosej', 1.50),
     AddOn('Cheese', 'Cheese', 1.50),
     AddOn('Telur', 'Telur', 1.20),
@@ -75,11 +77,11 @@ class _AddMealOrderState extends State<AddMealOrder> {
   Future<void> _loadFranchiseeInfo() async {
     try {
       final userId = await getLoggedInUserId();
-      
+
       if (userId != null) {
         final userController = UserController();
         final user = await userController.getUserById(userId);
-        
+
         if (user != null) {
           setState(() {
             franchiseeId = user.id;
@@ -222,9 +224,8 @@ class _AddMealOrderState extends State<AddMealOrder> {
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(color: Colors.white),
-        ),
+        builder: (context) =>
+            const Center(child: CircularProgressIndicator(color: Colors.white)),
       );
 
       final controller = MealOrderController();

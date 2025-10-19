@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:myakieburger/domains/meal_order_model.dart';
 import 'package:myakieburger/providers/ingredients_controller.dart';
-
+ 
 class MealOrderController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final IngredientsController _ingredientsController = IngredientsController();

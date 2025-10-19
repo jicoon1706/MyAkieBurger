@@ -6,87 +6,76 @@ import 'package:myakieburger/domains/ingredients_model.dart';
 class IngredientsController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  /// 🔹 Recipe mapping: menu items to their ingredient requirements
+   /// 🔹 Recipe mapping: menu items to their ingredient requirements
   static const Map<String, Map<String, int>> recipeMap = {
-    // Chicken Category
+    // ===== CHICKEN CATEGORY =====
     'Chicken_Biasa': {
-      'Roti (pieces)': 2,
+      'Roti (pieces)': 1,
       'Ayam (80g)': 1,
     },
     'Chicken_Special': {
-      'Roti (pieces)': 2,
+      'Roti (pieces)': 1,
       'Ayam (80g)': 1,
       'Telur': 1,
     },
     'Chicken_Double': {
-      'Roti (pieces)': 2,
+      'Roti (pieces)': 1,
       'Ayam (80g)': 2,
     },
     'Chicken_D. Special': {
-      'Roti (pieces)': 2,
+      'Roti (pieces)': 1,
       'Ayam (80g)': 2,
       'Telur': 1,
     },
     'Chicken_Oblong': {
-      'Roti Oblong': 2,
-      'Ayam (80g)': 2,
+      'Roti Oblong': 1,
+      'Ayam Oblong': 1,
     },
 
-    // Meat Category
+    // ===== MEAT CATEGORY =====
     'Meat_Biasa': {
-      'Roti (pieces)': 2,
+      'Roti (pieces)': 1,
       'Daging (80g)': 1,
     },
     'Meat_Special': {
-      'Roti (pieces)': 2,
+      'Roti (pieces)': 1,
       'Daging (80g)': 1,
       'Telur': 1,
     },
     'Meat_Double': {
-      'Roti (pieces)': 2,
+      'Roti (pieces)': 1,
       'Daging (80g)': 2,
     },
     'Meat_D. Special': {
-      'Roti (pieces)': 2,
+      'Roti (pieces)': 1,
       'Daging (80g)': 2,
       'Telur': 1,
     },
     'Meat_Oblong': {
-      'Roti Oblong': 2,
-      'Daging (80g)': 2,
+      'Roti Oblong': 1,
+      'Daging Oblong': 1,
     },
 
-    // Others Category
+    // ===== OTHERS CATEGORY =====
+    'Others_Smokey': {
+      'Roti (pieces)': 1,
+      'Daging Smokey (100g)': 1,
+    },
+    'Others_Kambing': {
+      'Roti (pieces)': 1,
+      'Daging Kambing': 1,
+    },
     'Others_Oblong Kambing': {
-      'Roti Oblong': 2,
+      'Roti Oblong': 1,
       'Kambing Oblong': 1,
     },
     'Others_Hotdog': {
-      'Roti Hotdog': 2,
+      'Roti Hotdog': 1,
       'Sosej': 1,
-    },
-    'Others_Hotdog Special': {
-      'Roti Hotdog': 2,
-      'Sosej': 1,
-      'Telur': 1,
     },
     'Others_Benjo': {
-      'Roti (pieces)': 2,
+      'Roti (pieces)': 1,
       'Telur': 1,
-    },
-
-    // Exotic Category
-    'Exotic_Rusa': {
-      'Roti Oblong': 2,
-      'Rusa': 1,
-    },
-    'Exotic_Arnab': {
-      'Roti Oblong': 2,
-      'Arnab': 1,
-    },
-    'Exotic_Kambing': {
-      'Roti Oblong': 2,
-      'Kambing Oblong': 1,
     },
   };
 
@@ -94,6 +83,12 @@ class IngredientsController {
   static const Map<String, String> addOnIngredientMap = {
     'Daging': 'Daging (80g)',
     'Ayam': 'Ayam (80g)',
+    'Daging Smokey': 'Daging Smokey (100g)',
+    'Daging Exotic': 'Daging Exotic',
+    'Daging Kambing': 'Daging Kambing (70g)',
+    'Daging Oblong': 'Daging Oblong',        // Fixed: was mapping to Kambing Oblong
+    'Ayam Oblong': 'Ayam Oblong',            // Added: was missing
+    'Kambing Oblong': 'Kambing Oblong',
     'Sosej': 'Sosej',
     'Cheese': 'Cheese',
     'Telur': 'Telur',

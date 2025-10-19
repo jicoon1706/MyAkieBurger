@@ -1,7 +1,7 @@
 // lib/providers/ingredients_order_controller.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:myakieburger/domains/ingredients_order_model.dart';
-
+ 
 class IngredientsOrderController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
