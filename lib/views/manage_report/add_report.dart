@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:myakieburger/theme/app_colors.dart';
 import 'package:myakieburger/widgets/custom_snackbar.dart';
+import 'package:myakieburger/services/auth_service.dart';
+import 'package:myakieburger/providers/user_controller.dart';
+import 'package:myakieburger/providers/meal_order_controller.dart';
+import 'package:myakieburger/providers/ingredients_controller.dart';
+import 'package:myakieburger/domains/user_model.dart';
+import 'package:myakieburger/domains/ingredients_model.dart';
+import 'package:intl/intl.dart';
 
 class AddReport extends StatefulWidget {
   const AddReport({super.key});
@@ -10,117 +17,190 @@ class AddReport extends StatefulWidget {
 }
 
 class _AddReportState extends State<AddReport> {
-  final TextEditingController _franchiseeIdController = TextEditingController(
-    text: 'F001',
-  );
-  final TextEditingController _staffNameController = TextEditingController(
-    text: 'Chen',
-  );
-  final TextEditingController _dateController = TextEditingController(
-    text: '24/05/2024',
-  );
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _stallNameController = TextEditingController();
+  final TextEditingController _dateController = TextEditingController();
   final TextEditingController _commentsController = TextEditingController();
+  final TextEditingController _regionNameController = TextEditingController();
 
-  final List<Map<String, dynamic>> menuItems = [
-    {
-      'name': 'Biasa (Ayam/Daging)',
-      'price': 'RM 4.50',
-      'quantity': 10,
-      'total': 45.00,
-    },
-    {
-      'name': 'Special (Ayam/Daging)',
-      'price': 'RM 6.00',
-      'quantity': 10,
-      'total': 67.00,
-    },
-    {
-      'name': 'Double (Ayam/Daging)',
-      'price': 'RM 6.00',
-      'quantity': 10,
-      'total': 60.00,
-    },
-    {
-      'name': 'Double Special (Ayam/Daging)',
-      'price': 'RM 8.00',
-      'quantity': 10,
-      'total': 80.00,
-    },
-    {
-      'name': 'Oblong (Ayam/Daging)',
-      'price': 'RM 7.00',
-      'quantity': 10,
-      'total': 70.00,
-    },
-    {
-      'name': 'Oblong Kambing',
-      'price': 'RM 9.00',
-      'quantity': 10,
-      'total': 90.00,
-    },
-    {'name': 'Hotdog', 'price': 'RM 3.00', 'quantity': 10, 'total': 30.00},
-    {'name': 'Hotdog', 'price': 'RM 3.00', 'quantity': 10, 'total': 30.00},
-    {'name': 'Bendog', 'price': 'RM 8.00', 'quantity': 10, 'total': 80.00},
-    {'name': 'Kambing', 'price': 'RM 5.50', 'quantity': 10, 'total': 55.00},
-  ];
+  final UserController _userController = UserController();
+  final MealOrderController _mealOrderController = MealOrderController();
+  final IngredientsController _ingredientsController = IngredientsController();
 
-  final List<Map<String, dynamic>> addOns = [
-    {'name': 'Daging/Ayam', 'price': 'RM 3.00', 'quantity': 10, 'total': 30.00},
-    {
-      'name': 'Daging Smokey',
-      'price': 'RM 5.50',
-      'quantity': 10,
-      'total': 55.00,
-    },
-    {
-      'name': 'Daging Kambing',
-      'price': 'RM 4.00',
-      'quantity': 10,
-      'total': 40.00,
-    },
-    {
-      'name': 'Daging Exotic',
-      'price': 'RM 4.00',
-      'quantity': 10,
-      'total': 40.00,
-    },
-    {
-      'name': 'Daging Oblong',
-      'price': 'RM 5.00',
-      'quantity': 10,
-      'total': 50.00,
-    },
-    {'name': 'Ayam Oblong', 'price': 'RM 5.00', 'quantity': 10, 'total': 50.00},
-    {
-      'name': 'Kambing Oblong',
-      'price': 'RM 7.50',
-      'quantity': 10,
-      'total': 75.00,
-    },
-    {'name': 'Sosej', 'price': 'RM 1.50', 'quantity': 10, 'total': 15.00},
-    {'name': 'Telur', 'price': 'RM 1.20', 'quantity': 10, 'total': 12.00},
-    {'name': 'Cheese', 'price': 'RM 1.60', 'quantity': 10, 'total': 16.00},
-  ];
+  bool _isLoading = true;
+  String? _userId;
+  DateTime _selectedDate = DateTime.now();
 
-  final List<Map<String, dynamic>> ingredients = [
-    {'name': 'Roti (pieces)', 'stock': 100, 'used': 70, 'balance': 30},
-    {'name': 'Daging (80g)', 'stock': 100, 'used': 70, 'balance': 30},
-    {'name': 'Ayam (80g)', 'stock': 100, 'used': 70, 'balance': 30},
-    {'name': 'Daging Smoky (100g)', 'stock': 100, 'used': 70, 'balance': 30},
-    {'name': 'Kambing (70g)', 'stock': 100, 'used': 70, 'balance': 30},
-    {'name': 'Rusa', 'stock': 100, 'used': 70, 'balance': 30},
-    {'name': 'Arnab', 'stock': 100, 'used': 70, 'balance': 30},
-    {'name': 'Itik', 'stock': 100, 'used': 70, 'balance': 30},
-    {'name': 'Roti Hotdog', 'stock': 100, 'used': 70, 'balance': 30},
-    {'name': 'Sosej', 'stock': 100, 'used': 70, 'balance': 30},
-    {'name': 'Roti Oblong', 'stock': 100, 'used': 70, 'balance': 30},
-    {'name': 'Kambing Oblong', 'stock': 100, 'used': 70, 'balance': 30},
-    {'name': 'Ayam Oblong', 'stock': 100, 'used': 70, 'balance': 30},
-    {'name': 'Daging Oblong', 'stock': 100, 'used': 70, 'balance': 30},
-    {'name': 'Cheese (pieces)', 'stock': 100, 'used': 70, 'balance': 30},
-    {'name': 'Telur', 'stock': 100, 'used': 70, 'balance': 30},
-    {'name': 'Benjo', 'stock': 100, 'used': 70, 'balance': 30},
-  ];
+  List<Map<String, dynamic>> menuItems = [];
+  List<Map<String, dynamic>> addOns = [];
+  int totalQuantity = 0;
+  double totalSales = 0.0;
+
+  List<Map<String, dynamic>> ingredients = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+    _setTodayDate();
+  }
+
+  void _setTodayDate() {
+    final now = DateTime.now();
+    _selectedDate = now;
+    _dateController.text = DateFormat('dd/MM/yyyy').format(now);
+  }
+
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: AppColors.primaryRed,
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+        _dateController.text = DateFormat('dd/MM/yyyy').format(picked);
+      });
+
+      // Reload data for the new date
+      await _loadItemsSold();
+      await _loadIngredients();
+    }
+  }
+
+  Future<void> _loadUserData() async {
+    setState(() => _isLoading = true);
+
+    try {
+      // Get logged-in user ID from SharedPreferences
+      final userId = await getLoggedInUserId();
+
+      if (userId == null) {
+        if (mounted) {
+          CustomSnackbar.show(context, message: 'No user logged in');
+          Navigator.pop(context);
+        }
+        return;
+      }
+
+      _userId = userId;
+
+      // Fetch user data from Firestore
+      final user = await _userController.getUserById(userId);
+
+      if (user != null && mounted) {
+        setState(() {
+          _nameController.text = user.name;
+          _usernameController.text = user.username;
+          _stallNameController.text = user.stallName;
+          _regionNameController.text = user.region;
+        });
+
+        // Load items sold and ingredients for today
+        await _loadItemsSold();
+        await _loadIngredients();
+      } else {
+        if (mounted) {
+          CustomSnackbar.show(context, message: 'User data not found');
+          setState(() => _isLoading = false);
+        }
+      }
+    } catch (e) {
+      print('❌ Error loading user data: $e');
+      if (mounted) {
+        CustomSnackbar.show(context, message: 'Error loading user data');
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _loadItemsSold() async {
+    if (_userId == null) return;
+
+    try {
+      final itemsData = await _mealOrderController.getItemsSoldByDate(
+        _userId!,
+        _selectedDate,
+      );
+
+      setState(() {
+        menuItems = List<Map<String, dynamic>>.from(itemsData['menuItems']);
+        addOns = List<Map<String, dynamic>>.from(itemsData['addOns']);
+        totalQuantity = itemsData['totalQuantity'] as int;
+        totalSales = itemsData['totalSales'] as double;
+      });
+
+      print(
+        '✅ Loaded items sold: ${menuItems.length} menu items, ${addOns.length} add-ons',
+      );
+    } catch (e) {
+      print('❌ Error loading items sold: $e');
+      if (mounted) {
+        CustomSnackbar.show(context, message: 'Error loading sales data');
+      }
+    }
+  }
+
+  Future<void> _loadIngredients() async {
+    if (_userId == null) return;
+
+    try {
+      final ingredientsList = await _ingredientsController.getIngredients(
+        _userId!,
+      );
+
+      setState(() {
+        ingredients = ingredientsList.map((ingredient) {
+          // Calculate received (stock) from balance + used
+          final received = ingredient.balance + ingredient.used;
+
+          return {
+            'name': ingredient.name,
+            'stock': received,
+            'used': ingredient.used,
+            'balance': ingredient.balance,
+          };
+        }).toList();
+
+        _isLoading = false;
+      });
+
+      print('✅ Loaded ${ingredients.length} ingredients');
+    } catch (e) {
+      print('❌ Error loading ingredients: $e');
+      setState(() => _isLoading = false);
+      if (mounted) {
+        CustomSnackbar.show(context, message: 'Error loading ingredients data');
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _usernameController.dispose();
+    _stallNameController.dispose();
+    _regionNameController.dispose();
+    _dateController.dispose();
+    _commentsController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -143,14 +223,16 @@ class _AddReportState extends State<AddReport> {
         ),
         actions: [
           TextButton(
-            onPressed: () {
-              // Save logic
-              Navigator.pop(context);
-              CustomSnackbar.show(
-                context,
-                message: 'Report saved successfully!',
-              );
-            },
+            onPressed: _isLoading
+                ? null
+                : () {
+                    // Save logic
+                    Navigator.pop(context);
+                    CustomSnackbar.show(
+                      context,
+                      message: 'Report saved successfully!',
+                    );
+                  },
             child: const Text(
               'Save',
               style: TextStyle(
@@ -162,169 +244,257 @@ class _AddReportState extends State<AddReport> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Franchisee ID
-            _buildTextField('Franchisee ID', _franchiseeIdController),
-            const SizedBox(height: 12),
-
-            // Staff Name
-            _buildTextField('Staff Name', _staffNameController),
-            const SizedBox(height: 12),
-
-            // Date
-            _buildTextField('Date', _dateController),
-            const SizedBox(height: 20),
-
-            // Items Sold Section
-            const Text(
-              'Items Sold',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
               ),
-            ),
-            const SizedBox(height: 8),
-
-            // Menu Items Table
-            _buildTable(
-              headers: ['Menu', 'Sold (Units)', 'Total (RM)'],
-              items: menuItems,
-            ),
-
-            const SizedBox(height: 16),
-
-            // Add-On Section
-            const Padding(
-              padding: EdgeInsets.only(left: 8),
-              child: Text(
-                'Add-On',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-
-            _buildTable(headers: ['', '', ''], items: addOns, isAddOn: true),
-
-            const SizedBox(height: 16),
-
-            // Total Sales
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Total Sales',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                  // Name
+                  _buildTextField('Name', _nameController, enabled: false),
+                  const SizedBox(height: 12),
+
+                  // Username
+                  _buildTextField(
+                    'Username',
+                    _usernameController,
+                    enabled: false,
                   ),
-                  Text(
-                    '100',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                  const SizedBox(height: 12),
+
+                  // Stall Name
+                  _buildTextField(
+                    'Stall Name',
+                    _stallNameController,
+                    enabled: false,
                   ),
-                  Text(
-                    '975.00',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                  const SizedBox(height: 12),
+
+                  // Region Name
+                  _buildTextField(
+                    'Region',
+                    _regionNameController,
+                    enabled: false,
                   ),
+                  const SizedBox(height: 12),
+
+                  // Date with Date Picker
+                  _buildDateField('Date', _dateController),
+                  const SizedBox(height: 20),
+
+                  // Items Sold Section
+                  const Text(
+                    'Items Sold',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Menu Items Table
+                  if (menuItems.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'No menu items sold today',
+                          style: TextStyle(color: Colors.grey, fontSize: 14),
+                        ),
+                      ),
+                    )
+                  else
+                    _buildTable(
+                      headers: ['Menu', 'Sold (Units)', 'Total (RM)'],
+                      items: menuItems,
+                    ),
+
+                  const SizedBox(height: 16),
+
+                  // Add-On Section
+                  const Padding(
+                    padding: EdgeInsets.only(left: 8),
+                    child: Text(
+                      'Add-On',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  if (addOns.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'No add-ons sold today',
+                          style: TextStyle(color: Colors.grey, fontSize: 14),
+                        ),
+                      ),
+                    )
+                  else
+                    _buildTable(
+                      headers: ['', '', ''],
+                      items: addOns,
+                      isAddOn: true,
+                    ),
+
+                  const SizedBox(height: 16),
+
+                  // Total Sales
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Total Sales',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          totalQuantity.toString(),
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          totalSales.toStringAsFixed(2),
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Ingredients Details Section
+                  const Text(
+                    'Ingredients Details',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  if (ingredients.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'No ingredients data available',
+                          style: TextStyle(color: Colors.grey, fontSize: 14),
+                        ),
+                      ),
+                    )
+                  else
+                    _buildIngredientsTable(),
+
+                  const SizedBox(height: 20),
+
+                  // Comments Section
+                  const Text(
+                    'Comments',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: TextField(
+                      controller: _commentsController,
+                      maxLines: 5,
+                      decoration: const InputDecoration(
+                        hintText: 'Enter comments...',
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.all(12),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Submit Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        CustomSnackbar.show(
+                          context,
+                          message: 'Report submitted successfully!',
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFB83D2A),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text(
+                        'Submit Report',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
                 ],
               ),
             ),
-
-            const SizedBox(height: 20),
-
-            // Ingredients Details Section
-            const Text(
-              'Ingredients Details',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-
-            _buildIngredientsTable(),
-
-            const SizedBox(height: 20),
-
-            // Comments Section
-            const Text(
-              'Comments',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: TextField(
-                controller: _commentsController,
-                maxLines: 5,
-                decoration: const InputDecoration(
-                  hintText: 'Enter comments...',
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.all(12),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Submit Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  CustomSnackbar.show(
-                    context,
-                    message: 'Report submitted successfully!',
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFB83D2A),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: const Text(
-                  'Submit Report',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-          ],
-        ),
-      ),
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller) {
+  Widget _buildTextField(
+    String label,
+    TextEditingController controller, {
+    bool enabled = true,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -339,17 +509,57 @@ class _AddReportState extends State<AddReport> {
         const SizedBox(height: 6),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: enabled ? Colors.white : Colors.grey[300],
             borderRadius: BorderRadius.circular(8),
           ),
           child: TextField(
             controller: controller,
+            enabled: enabled,
             decoration: const InputDecoration(
               border: InputBorder.none,
               contentPadding: EdgeInsets.symmetric(
                 horizontal: 12,
                 vertical: 12,
               ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDateField(String label, TextEditingController controller) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 6),
+        GestureDetector(
+          onTap: () => _selectDate(context),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: TextField(
+              controller: controller,
+              enabled: false,
+              decoration: const InputDecoration(
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
+                suffixIcon: Icon(Icons.calendar_today, color: Colors.grey),
+              ),
+              style: const TextStyle(color: Colors.black),
             ),
           ),
         ),
@@ -424,6 +634,16 @@ class _AddReportState extends State<AddReport> {
                 Divider(height: 1, color: Colors.grey[300]),
             itemBuilder: (context, index) {
               final item = items[index];
+              final String name = item['name'] ?? '';
+              final int quantity = item['quantity'] ?? 0;
+              final num total = item['total'] ?? 0.0;
+
+              // Price is now a double, format it properly
+              final dynamic priceValue = item['price'];
+              final String priceText = priceValue is num
+                  ? 'RM ${priceValue.toStringAsFixed(2)}'
+                  : (priceValue?.toString() ?? 'RM 0.00');
+
               return Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
@@ -437,37 +657,33 @@ class _AddReportState extends State<AddReport> {
                         Expanded(
                           flex: 2,
                           child: Text(
-                            item['name'],
+                            name,
                             style: const TextStyle(fontSize: 11),
                           ),
                         ),
                         Expanded(
                           child: Text(
-                            item['quantity'].toString(),
+                            quantity.toString(),
                             textAlign: TextAlign.center,
                             style: const TextStyle(fontSize: 11),
                           ),
                         ),
                         Expanded(
                           child: Text(
-                            item['total'].toStringAsFixed(2),
+                            total.toStringAsFixed(2),
                             textAlign: TextAlign.right,
                             style: const TextStyle(fontSize: 11),
                           ),
                         ),
                       ],
                     ),
-                    if (item['price'] != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 2),
-                        child: Text(
-                          item['price'],
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.grey[600],
-                          ),
-                        ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        priceText,
+                        style: TextStyle(fontSize: 10, color: Colors.grey[600]),
                       ),
+                    ),
                   ],
                 ),
               );

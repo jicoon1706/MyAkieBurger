@@ -8,6 +8,35 @@ class MealOrderController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final IngredientsController _ingredientsController = IngredientsController();
 
+  /// 🔹 All menu items template with prices
+  static const Map<String, double> allMenuItems = {
+    'Biasa (Chicken/Meat)': 4.50,
+    'Special (Chicken/Meat)': 5.70,
+    'Double (Chicken/Meat)': 6.80,
+    'D. Special (Chicken/Meat)': 8.00,
+    'Oblong (Chicken/Meat)': 7.00,
+    'Smokey': 8.00,
+    'Kambing': 5.50,
+    'Oblong Kambing': 9.00,
+    'Hotdog': 3.00,
+    'Benjo': 3.00,
+  };
+
+  /// 🔹 All add-ons template with prices
+  static const Map<String, double> allAddOns = {
+    'Daging': 3.00,
+    'Ayam': 3.00,
+    'Daging Smokey': 5.50,
+    'Daging Exotic': 4.00,
+    'Daging Kambing': 4.00,
+    'Daging Oblong': 5.00,
+    'Ayam Oblong': 5.00,
+    'Kambing Oblong': 7.50,
+    'Sosej': 1.50,
+    'Cheese': 1.50,
+    'Telur': 1.20,
+  };
+
   /// 🔹 Save meal order and deduct ingredients
   Future<void> saveMealOrder(String franchiseeId, MealOrderModel order) async {
     try {
@@ -24,9 +53,8 @@ class MealOrderController {
         'total_amount': order.totalAmount.toDouble(),
         'meals': order.meals,
         'notes': order.notes,
-        'created_at': formattedDate, // readable version
-        'created_at_timestamp':
-            FieldValue.serverTimestamp(), // sortable version
+        'created_at': formattedDate,
+        'created_at_timestamp': FieldValue.serverTimestamp(),
       });
 
       await _firestore
@@ -36,7 +64,6 @@ class MealOrderController {
           .doc('meal_orders')
           .set({orderRef.id: orderRef.id}, SetOptions(merge: true));
 
-      // 🔹 Deduct ingredients automatically
       await _ingredientsController.deductIngredientsForOrder(
         franchiseeId,
         order.meals,
@@ -50,10 +77,215 @@ class MealOrderController {
     }
   }
 
+  /// 🔹 Get items sold by date (menu items and add-ons)
+  Future<Map<String, dynamic>> getItemsSoldByDate(
+    String franchiseeId,
+    DateTime date,
+  ) async {
+    final dateString = DateFormat('yyyy-MM-dd').format(date);
+    final dateFormat = DateFormat('dd/MM/yyyy HH:mm:ss');
+
+    try {
+      final snapshot = await _firestore
+          .collection('meal_orders_all')
+          .where('franchiseeId', isEqualTo: franchiseeId)
+          .get();
+
+      // Maps to store aggregated data with quantity and total
+      Map<String, Map<String, dynamic>> menuItemsMap = {};
+      Map<String, Map<String, dynamic>> addOnsMap = {};
+      double totalSales = 0.0;
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final createdAtStr = data['created_at'] as String;
+        final createdAt = dateFormat.parse(createdAtStr);
+        final orderDateString = DateFormat('yyyy-MM-dd').format(createdAt);
+
+        // Only process orders from the specified date
+        if (orderDateString == dateString) {
+          final amount = data['total_amount'];
+          totalSales += (amount is int) ? amount.toDouble() : (amount ?? 0.0);
+
+          final meals = data['meals'] as List<dynamic>? ?? [];
+
+          for (var meal in meals) {
+            final menuName = meal['menu_name'] as String? ?? 'Unknown';
+            final category = meal['category'] as String? ?? '';
+            final dbPrice =
+                meal['price'] as num? ?? 0.0; // Price from DB (might be 0)
+            final quantity = meal['quantity'] as int? ?? 1;
+
+            // Group Chicken and Meat items together
+            String displayName = menuName;
+
+            if ((category == 'Chicken' || category == 'Meat') &&
+                (menuName == 'Biasa' ||
+                    menuName == 'Special' ||
+                    menuName == 'Double' ||
+                    menuName == 'D. Special' ||
+                    menuName == 'Oblong')) {
+              displayName = '$menuName (Chicken/Meat)';
+            }
+
+            // 🔥 FIX: Get the correct price from template, not from database
+            double correctPrice =
+                allMenuItems[displayName] ?? dbPrice.toDouble();
+
+            // Aggregate menu items
+            if (menuItemsMap.containsKey(displayName)) {
+              menuItemsMap[displayName]!['quantity'] =
+                  (menuItemsMap[displayName]!['quantity'] as int) + quantity;
+              menuItemsMap[displayName]!['total'] =
+                  (menuItemsMap[displayName]!['total'] as double) +
+                  (correctPrice * quantity);
+            } else {
+              menuItemsMap[displayName] = {
+                'name': displayName,
+                'price': correctPrice, // Use template price
+                'quantity': quantity,
+                'total': correctPrice * quantity,
+              };
+            }
+
+            print(
+              "📦 Menu: $displayName | Qty: $quantity | Price: $correctPrice | Total: ${correctPrice * quantity}",
+            );
+
+            // Aggregate add-ons
+            final addOns = meal['add_ons'] as List<dynamic>? ?? [];
+            for (var addOn in addOns) {
+              final addOnName = addOn['name'] as String? ?? 'Unknown';
+              final dbAddOnPrice = addOn['price'] as num? ?? 0.0;
+              final addOnQty = addOn['quantity'] as int? ?? 1;
+
+              // 🔥 FIX: Get the correct add-on price from template
+              double correctAddOnPrice =
+                  allAddOns[addOnName] ?? dbAddOnPrice.toDouble();
+
+              if (addOnsMap.containsKey(addOnName)) {
+                addOnsMap[addOnName]!['quantity'] =
+                    (addOnsMap[addOnName]!['quantity'] as int) + addOnQty;
+                addOnsMap[addOnName]!['total'] =
+                    (addOnsMap[addOnName]!['total'] as double) +
+                    (correctAddOnPrice * addOnQty);
+              } else {
+                addOnsMap[addOnName] = {
+                  'name': addOnName,
+                  'price': correctAddOnPrice, // Use template price
+                  'quantity': addOnQty,
+                  'total': correctAddOnPrice * addOnQty,
+                };
+              }
+
+              print(
+                "🔧 AddOn: $addOnName | Qty: $addOnQty | Price: $correctAddOnPrice | Total: ${correctAddOnPrice * addOnQty}",
+              );
+            }
+          }
+        }
+      }
+
+      // Create complete menu items list (including items with 0 quantity)
+      List<Map<String, dynamic>> menuItems = [];
+      allMenuItems.forEach((itemName, itemPrice) {
+        if (menuItemsMap.containsKey(itemName)) {
+          final item = menuItemsMap[itemName]!;
+          menuItems.add({
+            'name': item['name'],
+            'price': itemPrice, // Always use template price
+            'quantity': item['quantity'],
+            'total': (item['total'] as double),
+          });
+        } else {
+          // Add item with 0 quantity
+          menuItems.add({
+            'name': itemName,
+            'price': itemPrice, // Always use template price
+            'quantity': 0,
+            'total': 0.0,
+          });
+        }
+      });
+
+      // Create complete add-ons list (including add-ons with 0 quantity)
+      List<Map<String, dynamic>> addOns = [];
+      allAddOns.forEach((addOnName, addOnPrice) {
+        if (addOnsMap.containsKey(addOnName)) {
+          final addOn = addOnsMap[addOnName]!;
+          addOns.add({
+            'name': addOn['name'],
+            'price': addOnPrice, // Always use template price
+            'quantity': addOn['quantity'],
+            'total': (addOn['total'] as double),
+          });
+        } else {
+          // Add add-on with 0 quantity
+          addOns.add({
+            'name': addOnName,
+            'price': addOnPrice, // Always use template price
+            'quantity': 0,
+            'total': 0.0,
+          });
+        }
+      });
+
+      // Calculate total quantity (only sold items)
+      int totalQuantity = menuItems.fold(
+        0,
+        (sum, item) => sum + (item['quantity'] as int),
+      );
+
+      print("📊 Items sold on $dateString:");
+      print("   Menu Items: ${menuItems.length} types");
+      print("   Add-Ons: ${addOns.length} types");
+      print("   Total Quantity: $totalQuantity");
+      print("   Total Sales: RM ${totalSales.toStringAsFixed(2)}");
+
+      return {
+        'menuItems': menuItems,
+        'addOns': addOns,
+        'totalQuantity': totalQuantity,
+        'totalSales': totalSales,
+        'date': dateString,
+      };
+    } catch (e) {
+      print("❌ Error fetching items sold by date: $e");
+
+      // Return complete list with all items at 0 on error
+      List<Map<String, dynamic>> menuItems = [];
+      allMenuItems.forEach((itemName, itemPrice) {
+        menuItems.add({
+          'name': itemName,
+          'price': itemPrice,
+          'quantity': 0,
+          'total': 0.0,
+        });
+      });
+
+      List<Map<String, dynamic>> addOns = [];
+      allAddOns.forEach((addOnName, addOnPrice) {
+        addOns.add({
+          'name': addOnName,
+          'price': addOnPrice,
+          'quantity': 0,
+          'total': 0.0,
+        });
+      });
+
+      return {
+        'menuItems': menuItems,
+        'addOns': addOns,
+        'totalQuantity': 0,
+        'totalSales': 0.0,
+        'date': dateString,
+      };
+    }
+  }
+
   // 🔹 Fetch total weekly sales
   Future<double> getWeeklySales(String franchiseeId) async {
     final now = DateTime.now();
-    // Set weekStart to Monday 00:00:00
     final weekStart = DateTime(
       now.year,
       now.month,
@@ -62,7 +294,6 @@ class MealOrderController {
       0,
       0,
     );
-    // Set weekEnd to Sunday 23:59:59
     final weekEnd = weekStart.add(
       const Duration(days: 6, hours: 23, minutes: 59, seconds: 59),
     );
@@ -81,15 +312,6 @@ class MealOrderController {
         final createdAtStr = data['created_at'] as String;
         final createdAt = dateFormat.parse(createdAtStr);
 
-        // Debug print
-        print("📅 Order date: $createdAt");
-        print("📅 Week start: $weekStart");
-        print("📅 Week end: $weekEnd");
-        print(
-          "📅 Is within week: ${createdAt.isAfter(weekStart.subtract(const Duration(seconds: 1))) && createdAt.isBefore(weekEnd.add(const Duration(seconds: 1)))}",
-        );
-
-        // Use isAfter/isBefore with inclusive comparison
         if (createdAt.isAfter(weekStart.subtract(const Duration(seconds: 1))) &&
             createdAt.isBefore(weekEnd.add(const Duration(seconds: 1)))) {
           final amount = data['total_amount'];
@@ -97,9 +319,6 @@ class MealOrderController {
               ? amount.toDouble()
               : (amount ?? 0.0);
           total += amountDouble;
-          print("✅ Added to total: RM $amountDouble (Total now: RM $total)");
-        } else {
-          print("❌ Order not in current week");
         }
       }
 
@@ -137,7 +356,6 @@ class MealOrderController {
           final amount = data['total_amount'];
           todayTotal += (amount is int) ? amount.toDouble() : (amount ?? 0.0);
 
-          // Calculate total items and build display string
           String itemSummary = '';
           String addonSummary = '';
           int totalAddOns = 0;
@@ -146,24 +364,20 @@ class MealOrderController {
             final meals = data['meals'] as List;
             Map<String, int> itemCounts = {};
 
-            // Count items by name
             for (var meal in meals) {
               final menuName = meal['menu_name'] ?? 'Unknown';
               final qty = (meal['quantity'] ?? 1) as int;
               itemCounts[menuName] = (itemCounts[menuName] ?? 0) + qty;
 
-              // Count add-ons
               if (meal['add_ons'] != null) {
                 totalAddOns += (meal['add_ons'] as List).length;
               }
             }
 
-            // Build item summary (e.g., "2 Biasa, 1 Smokey")
             itemSummary = itemCounts.entries
                 .map((e) => '${e.value} ${e.key}')
                 .join(', ');
 
-            // Build add-on summary
             if (totalAddOns > 0) {
               addonSummary = '$totalAddOns Add-On${totalAddOns > 1 ? 's' : ''}';
             } else {
@@ -180,7 +394,7 @@ class MealOrderController {
             'price':
                 'RM ${((amount is int) ? amount.toDouble() : (amount ?? 0.0)).toStringAsFixed(2)}',
             'time': DateFormat('h:mm a').format(createdAt),
-            'fullOrderData': data, // Store full order data for popup
+            'fullOrderData': data,
           });
         }
       }
