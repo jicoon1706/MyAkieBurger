@@ -15,7 +15,7 @@ class IngredientsOrderModel {
     required this.franchiseeName,
     required this.ingredients,
     required this.totalAmount,
-    this.status = 'pending',
+    this.status = 'Pending',
     this.notes,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();

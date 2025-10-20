@@ -4,7 +4,6 @@ import 'package:myakieburger/views/manage_sales/franchisee_homepage.dart';
 import 'package:myakieburger/views/manage_ingredients_orders/ingredient_order_page.dart';
 import 'package:myakieburger/views/manage_ingredients_tracking/balanced_ingredients.dart';
 import 'package:myakieburger/views/manage_report/report_page.dart';
-import 'package:myakieburger/views/manage_sales/add_meal_order.dart';
 
 class FranchiseeMainContainer extends StatefulWidget {
   const FranchiseeMainContainer({super.key});
@@ -16,24 +15,32 @@ class FranchiseeMainContainer extends StatefulWidget {
 
 class _FranchiseeMainContainerState extends State<FranchiseeMainContainer> {
   int _currentIndex = 0;
+  final GlobalKey<FranchiseeHomepageState> _homepageKey =
+      GlobalKey<FranchiseeHomepageState>();
 
-  final List<Widget> _pages = [
-    const FranchiseeHomepage(),
+  List<Widget> get _pages => [
+    FranchiseeHomepage(key: _homepageKey),
     const IngredientOrderPage(),
-    const AddMealOrder(), // For Add button
+    const SizedBox.shrink(), // Placeholder for Add button
     const BalancedIngredients(),
     const ReportPage(),
   ];
 
-  void _onTabTapped(int index) {
+  Future<void> _onTabTapped(int index) async {
     // Special case for Add button (middle one)
     if (index == 2) {
-      showModalBottomSheet(
+      final result = await showModalBottomSheet<bool>(
         context: context,
         backgroundColor: Colors.transparent,
         isScrollControlled: true,
         builder: (context) => const AddMealOrder(),
       );
+
+      // If order was completed successfully, refresh the homepage
+      if (result == true) {
+        // Refresh the homepage if it exists
+        _homepageKey.currentState?.refreshData();
+      }
       return;
     }
 

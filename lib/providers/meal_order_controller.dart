@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:myakieburger/domains/meal_order_model.dart';
 import 'package:myakieburger/providers/ingredients_controller.dart';
- 
+
 class MealOrderController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final IngredientsController _ingredientsController = IngredientsController();
@@ -50,10 +50,19 @@ class MealOrderController {
     }
   }
 
-  /// 🔹 Fetch total weekly sales
+  // 🔹 Fetch total weekly sales
   Future<double> getWeeklySales(String franchiseeId) async {
     final now = DateTime.now();
-    final weekStart = now.subtract(Duration(days: now.weekday - 1));
+    // Set weekStart to Monday 00:00:00
+    final weekStart = DateTime(
+      now.year,
+      now.month,
+      now.day - (now.weekday - 1),
+      0,
+      0,
+      0,
+    );
+    // Set weekEnd to Sunday 23:59:59
     final weekEnd = weekStart.add(
       const Duration(days: 6, hours: 23, minutes: 59, seconds: 59),
     );
@@ -72,12 +81,29 @@ class MealOrderController {
         final createdAtStr = data['created_at'] as String;
         final createdAt = dateFormat.parse(createdAtStr);
 
-        if (createdAt.isAfter(weekStart) && createdAt.isBefore(weekEnd)) {
+        // Debug print
+        print("📅 Order date: $createdAt");
+        print("📅 Week start: $weekStart");
+        print("📅 Week end: $weekEnd");
+        print(
+          "📅 Is within week: ${createdAt.isAfter(weekStart.subtract(const Duration(seconds: 1))) && createdAt.isBefore(weekEnd.add(const Duration(seconds: 1)))}",
+        );
+
+        // Use isAfter/isBefore with inclusive comparison
+        if (createdAt.isAfter(weekStart.subtract(const Duration(seconds: 1))) &&
+            createdAt.isBefore(weekEnd.add(const Duration(seconds: 1)))) {
           final amount = data['total_amount'];
-          total += (amount is int) ? amount.toDouble() : (amount ?? 0.0);
+          final amountDouble = (amount is int)
+              ? amount.toDouble()
+              : (amount ?? 0.0);
+          total += amountDouble;
+          print("✅ Added to total: RM $amountDouble (Total now: RM $total)");
+        } else {
+          print("❌ Order not in current week");
         }
       }
 
+      print("📊 Final weekly total: RM $total");
       return total;
     } catch (e) {
       print("❌ Error fetching weekly sales: $e");
@@ -85,7 +111,7 @@ class MealOrderController {
     }
   }
 
-  /// 🔹 Fetch today's orders
+  /// 🔹 Fetch today's orders with full order data
   Future<Map<String, dynamic>> getTodayOrders(String franchiseeId) async {
     final now = DateTime.now();
     final todayString = DateFormat('yyyy-MM-dd').format(now);
@@ -111,30 +137,50 @@ class MealOrderController {
           final amount = data['total_amount'];
           todayTotal += (amount is int) ? amount.toDouble() : (amount ?? 0.0);
 
-          // Get first meal's name
-          String itemName = 'Unknown Item';
-          if (data['meals'] != null && (data['meals'] as List).isNotEmpty) {
-            final firstMeal = (data['meals'] as List)[0];
-            itemName = firstMeal['menu_name'] ?? 'Unknown Item';
-          }
+          // Calculate total items and build display string
+          String itemSummary = '';
+          String addonSummary = '';
+          int totalAddOns = 0;
 
-          // Get add-ons info
-          String addonInfo = 'No Add-On';
           if (data['meals'] != null && (data['meals'] as List).isNotEmpty) {
-            final firstMeal = (data['meals'] as List)[0];
-            if (firstMeal['add_ons'] != null &&
-                (firstMeal['add_ons'] as List).isNotEmpty) {
-              final addOnCount = (firstMeal['add_ons'] as List).length;
-              addonInfo = 'Add-On ${addOnCount}x';
+            final meals = data['meals'] as List;
+            Map<String, int> itemCounts = {};
+
+            // Count items by name
+            for (var meal in meals) {
+              final menuName = meal['menu_name'] ?? 'Unknown';
+              final qty = (meal['quantity'] ?? 1) as int;
+              itemCounts[menuName] = (itemCounts[menuName] ?? 0) + qty;
+
+              // Count add-ons
+              if (meal['add_ons'] != null) {
+                totalAddOns += (meal['add_ons'] as List).length;
+              }
             }
+
+            // Build item summary (e.g., "2 Biasa, 1 Smokey")
+            itemSummary = itemCounts.entries
+                .map((e) => '${e.value} ${e.key}')
+                .join(', ');
+
+            // Build add-on summary
+            if (totalAddOns > 0) {
+              addonSummary = '$totalAddOns Add-On${totalAddOns > 1 ? 's' : ''}';
+            } else {
+              addonSummary = 'No Add-Ons';
+            }
+          } else {
+            itemSummary = 'No Items';
+            addonSummary = 'No Add-Ons';
           }
 
           todayOrders.add({
-            'item': itemName,
-            'addon': addonInfo,
+            'item': itemSummary,
+            'addon': addonSummary,
             'price':
                 'RM ${((amount is int) ? amount.toDouble() : (amount ?? 0.0)).toStringAsFixed(2)}',
             'time': DateFormat('h:mm a').format(createdAt),
+            'fullOrderData': data, // Store full order data for popup
           });
         }
       }
