@@ -8,6 +8,8 @@ import 'package:myakieburger/providers/ingredients_controller.dart';
 import 'package:myakieburger/domains/user_model.dart';
 import 'package:myakieburger/domains/ingredients_model.dart';
 import 'package:intl/intl.dart';
+import 'package:myakieburger/domains/report_model.dart';
+import 'package:myakieburger/providers/report_controller.dart';
 
 class AddReport extends StatefulWidget {
   const AddReport({super.key});
@@ -221,28 +223,28 @@ class _AddReportState extends State<AddReport> {
             fontSize: 18,
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: _isLoading
-                ? null
-                : () {
-                    // Save logic
-                    Navigator.pop(context);
-                    CustomSnackbar.show(
-                      context,
-                      message: 'Report saved successfully!',
-                    );
-                  },
-            child: const Text(
-              'Save',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-            ),
-          ),
-        ],
+        // actions: [
+        //   TextButton(
+        //     onPressed: _isLoading
+        //         ? null
+        //         : () {
+        //             // Save logic
+        //             Navigator.pop(context);
+        //             CustomSnackbar.show(
+        //               context,
+        //               message: 'Report saved successfully!',
+        //             );
+        //           },
+        //     child: const Text(
+        //       'Save',
+        //       style: TextStyle(
+        //         color: Colors.white,
+        //         fontWeight: FontWeight.bold,
+        //         fontSize: 16,
+        //       ),
+        //     ),
+        //   ),
+        // ],
       ),
       body: _isLoading
           ? const Center(
@@ -458,13 +460,65 @@ class _AddReportState extends State<AddReport> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        CustomSnackbar.show(
-                          context,
-                          message: 'Report submitted successfully!',
+                      onPressed: () async {
+                        if (_userId == null) return;
+
+                        final reportId =
+                            'report_${DateTime.now().millisecondsSinceEpoch}';
+                        final now = DateTime.now();
+
+                        final report = ReportModel(
+                          reportId: reportId,
+                          franchiseeId: _userId!,
+                          franchiseeName: _nameController.text,
+                          username: _usernameController.text, // 🆕 added here
+                          stallName: _stallNameController.text,
+                          region: _regionNameController.text,
+                          reportDate: _selectedDate,
+                          totalSales: totalSales,
+                          totalOrders: 0,
+                          totalMealsSold: totalQuantity,
+                          averageOrderValue: totalQuantity > 0
+                              ? totalSales / totalQuantity
+                              : 0,
+                          mealBreakdown: menuItems.map((m) {
+                            return {
+                              'menu_name': m['name'],
+                              'units_sold': m['quantity'],
+                              'unit_price': m['price'],
+                              'total_revenue': m['total'],
+                            };
+                          }).toList(),
+                          ingredientUsageSnapshot: ingredients
+                              .map((i) => i)
+                              .toList(),
+                          relatedMealOrders: [],
+                          comments: _commentsController.text,
+                          createdAt: now,
+                          updatedAt: now,
                         );
+
+                        try {
+                          final reportController = ReportController();
+                          await reportController.saveReport(report);
+
+                          if (mounted) {
+                            Navigator.pop(context);
+                            CustomSnackbar.show(
+                              context,
+                              message: 'Report submitted successfully!',
+                            );
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            CustomSnackbar.show(
+                              context,
+                              message: 'Failed to submit report.',
+                            );
+                          }
+                        }
                       },
+
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFB83D2A),
                         padding: const EdgeInsets.symmetric(vertical: 16),

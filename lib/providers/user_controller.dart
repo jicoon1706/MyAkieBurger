@@ -30,4 +30,19 @@ class UserController {
       rethrow;
     }
   }
+
+  // 👇 NEW: Update user profile
+  Future<void> updateUser(UserModel user) async {
+    try {
+      await _firestore.collection('users').doc(user.id).update({
+        'username': user.username,
+        'email': user.email,
+        // Add other fields if needed
+      });
+      print("✅ User profile updated: ${user.username}");
+    } catch (e) {
+      print("❌ Error updating user: $e");
+      rethrow;
+    }
+  }
 }
