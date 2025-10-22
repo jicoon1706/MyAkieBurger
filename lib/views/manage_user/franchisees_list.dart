@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:myakieburger/theme/app_colors.dart';
-import 'package:myakieburger/widgets/lists.dart'; // Reusable Lists widget
+import 'package:myakieburger/widgets/lists.dart';
+import 'package:myakieburger/views/manage_user/franchisee_details_page.dart';
 
 class FranchiseesList extends StatefulWidget {
   const FranchiseesList({super.key});
@@ -10,75 +12,61 @@ class FranchiseesList extends StatefulWidget {
 }
 
 class _FranchiseesListState extends State<FranchiseesList> {
-  // Sample franchisee data
-  final List<Map<String, dynamic>> franchisees = [
-    {
-      'name': 'Azlan',
-      'date': '19/05/2024',
-      'total': '250pcs',
-      'image': 'assets/profile.png',
-    },
-    {
-      'name': 'Akmal',
-      'date': '19/05/2024',
-      'total': '500pcs',
-      'image': 'assets/profile.png',
-    },
-    {
-      'name': 'Ali',
-      'date': '19/05/2024',
-      'total': '250pcs',
-      'image': 'assets/profile.png',
-    },
-    {
-      'name': 'Ammar',
-      'date': '19/05/2024',
-      'total': '500pcs',
-      'image': 'assets/profile.png',
-    },
-    {
-      'name': 'Yusof',
-      'date': '19/05/2024',
-      'total': '250pcs',
-      'image': 'assets/profile.png',
-    },
-    {
-      'name': 'Ahmad',
-      'date': '19/05/2024',
-      'total': '500pcs',
-      'image': 'assets/profile.png',
-    },
-  ];
-
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   String searchQuery = '';
 
-  void _handleViewDetails(String franchiseeName) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('$franchiseeName Details'),
-        content: const Text('View detailed information about this franchisee.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
+  Future<List<Map<String, dynamic>>> _fetchFranchisees() async {
+    try {
+      final snapshot = await _firestore
+          .collection('users')
+          .where('role', isEqualTo: 'Franchisee')
+          .get();
+
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+
+        // Convert ISO string to readable date
+        String formattedDate = '';
+        if (data['created_at'] != null) {
+          try {
+            final date = DateTime.parse(data['created_at']);
+            formattedDate =
+                '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+          } catch (e) {
+            formattedDate = 'Invalid date';
+          }
+        }
+
+        return {
+          'id': doc.id,
+          'username': data['username'] ?? 'Unnamed',
+          'date': formattedDate,
+          'image': 'assets/profile.png',
+        };
+      }).toList();
+    } catch (e) {
+      print("❌ Error fetching franchisees: $e");
+      return [];
+    }
   }
 
-  List<Map<String, dynamic>> get filteredFranchisees {
-    if (searchQuery.isEmpty) {
-      return franchisees;
-    }
-    return franchisees
-        .where(
-          (franchisee) => franchisee['name'].toLowerCase().contains(
-            searchQuery.toLowerCase(),
+  void _handleViewDetails(String franchiseeId) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.black,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-        )
-        .toList();
+          child: SizedBox(
+            width: MediaQuery.of(context).size.width * 0.9,
+            height: MediaQuery.of(context).size.height * 0.8,
+            child: FranchiseeDetailsPage(franchiseeId: franchiseeId),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -130,8 +118,17 @@ class _FranchiseesListState extends State<FranchiseesList> {
 
           // 📋 List of franchisees
           Expanded(
-            child: filteredFranchisees.isEmpty
-                ? Center(
+            child: FutureBuilder<List<Map<String, dynamic>>>(
+              future: _fetchFranchisees(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  );
+                }
+
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return Center(
                     child: Text(
                       'No franchisees found',
                       style: TextStyle(
@@ -139,34 +136,44 @@ class _FranchiseesListState extends State<FranchiseesList> {
                         fontSize: 16,
                       ),
                     ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: filteredFranchisees.length,
-                    itemBuilder: (context, index) {
-                      final franchisee = filteredFranchisees[index];
-                      return GestureDetector(
-                        onTap: () =>
-                            _handleViewDetails(franchisee['name']), // on tap
-                        child: Lists(
-                          name: franchisee['name'],
-                          date:
-                              '${franchisee['date']}  •  ${franchisee['total']}',
-                          imagePath: franchisee['image'],
-                          useProfileIcon: true, // show person icon
-                          onDownload: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Downloading ${franchisee['name']} data...',
-                                ),
+                  );
+                }
+
+                final franchisees = snapshot.data!
+                    .where(
+                      (f) => f['username'].toLowerCase().contains(
+                        searchQuery.toLowerCase(),
+                      ),
+                    )
+                    .toList();
+
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: franchisees.length,
+                  itemBuilder: (context, index) {
+                    final franchisee = franchisees[index];
+                    return GestureDetector(
+                      onTap: () => _handleViewDetails(franchisee['id']),
+                      child: Lists(
+                        name: franchisee['username'],
+                        date: franchisee['date'], // 👈 show created_at date
+                        imagePath: franchisee['image'],
+                        useProfileIcon: true,
+                        onDownload: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Downloading ${franchisee['username']} data...',
                               ),
-                            );
-                          },
-                        ),
-                      );
-                    },
-                  ),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),

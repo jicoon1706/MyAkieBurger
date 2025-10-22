@@ -82,4 +82,33 @@ class IngredientsOrderController {
       return [];
     }
   }
+
+  /// Fetch all ingredient supply orders
+Future<List<Map<String, dynamic>>> getAllOrders() async {
+  try {
+    print('🔍 Fetching all supply orders...');
+    final snapshot = await _firestore
+        .collection('supply_orders_all')
+        .orderBy('created_at', descending: true)
+        .get();
+
+    return snapshot.docs.map((doc) {
+      final data = doc.data();
+
+      // Ensure compatibility with 'username' field
+      return {
+        ...data,
+        'username': data['username'] ?? data['franchisee_name'] ?? 'Unknown',
+        'created_at': data['created_at'] is Timestamp
+            ? (data['created_at'] as Timestamp).toDate().toIso8601String()
+            : data['created_at'],
+      };
+    }).toList();
+  } catch (e) {
+    print("❌ Error fetching all supply orders: $e");
+    return [];
+  }
+}
+
+
 }

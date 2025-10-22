@@ -28,7 +28,7 @@ class UserController {
     } catch (e) {
       print("❌ Error registering franchisee: $e");
       rethrow;
-    }
+    } 
   }
 
   // 👇 NEW: Update user profile

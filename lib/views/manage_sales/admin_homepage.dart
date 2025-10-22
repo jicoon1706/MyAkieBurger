@@ -101,42 +101,44 @@ class _AdminHomepageState extends State<AdminHomepage> {
               const SizedBox(height: 20),
 
               // Quick Stats Grid
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildStatCard(
-                      icon: Icons.store,
-                      label: 'Franchisees',
-                      value: '24',
-                      color: const Color(0xFF6C63FF),
-                      centerContent: true, // 👈 Center only this card
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildStatCard(
-                      icon: Icons.shopping_bag,
-                      label: 'Orders Today',
-                      value: '142',
-                      color: const Color(0xFFFF6B9D),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildStatCard(
-                      icon: Icons.pending_actions,
-                      label: 'Pending',
-                      value: '8',
-                      color: const Color(0xFF00BCD4),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
+              // Row(
+              //   children: [
+              //     Expanded(
+              //       child: _buildStatCard(
+              //         icon: Icons.store,
+              //         label: 'Franchisees',
+              //         value: '24',
+              //         color: const Color(0xFF6C63FF),
+              //         centerContent: true, // 👈 Center only this card
+              //       ),
+              //     ),
+              //   ],
+              // ),
+
+              // const SizedBox(height: 12),
+
+              // Row(
+              //   children: [
+              //     Expanded(
+              //       child: _buildStatCard(
+              //         icon: Icons.shopping_bag,
+              //         label: 'Orders Today',
+              //         value: '142',
+              //         color: const Color(0xFFFF6B9D),
+              //       ),
+              //     ),
+              //     const SizedBox(width: 12),
+              //     Expanded(
+              //       child: _buildStatCard(
+              //         icon: Icons.pending_actions,
+              //         label: 'Pending',
+              //         value: '8',
+              //         color: const Color(0xFF00BCD4),
+              //       ),
+              //     ),
+              //   ],
+              // ),
+              // const SizedBox(height: 24),
 
               // Top Performing Franchisees
               Row(
@@ -189,34 +191,34 @@ class _AdminHomepageState extends State<AdminHomepage> {
               const SizedBox(height: 24),
 
               // Recent Activities
-              const Text(
-                'Recent Activities',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 12),
+              // const Text(
+              //   'Recent Activities',
+              //   style: TextStyle(
+              //     color: Colors.white,
+              //     fontSize: 20,
+              //     fontWeight: FontWeight.bold,
+              //   ),
+              // ),
+              // const SizedBox(height: 12),
 
-              _buildActivityItem(
-                icon: Icons.shopping_cart,
-                title: 'New Order - FE001',
-                subtitle: 'Tasik Chini placed an order',
-                time: '5 mins ago',
-              ),
-              _buildActivityItem(
-                icon: Icons.warning,
-                title: 'Low Stock Alert',
-                subtitle: 'Chicken patties running low',
-                time: '1 hour ago',
-              ),
-              _buildActivityItem(
-                icon: Icons.check_circle,
-                title: 'Order Completed',
-                subtitle: 'FE005 order delivered',
-                time: '2 hours ago',
-              ),
+              // _buildActivityItem(
+              //   icon: Icons.shopping_cart,
+              //   title: 'New Order - FE001',
+              //   subtitle: 'Tasik Chini placed an order',
+              //   time: '5 mins ago',
+              // ),
+              // _buildActivityItem(
+              //   icon: Icons.warning,
+              //   title: 'Low Stock Alert',
+              //   subtitle: 'Chicken patties running low',
+              //   time: '1 hour ago',
+              // ),
+              // _buildActivityItem(
+              //   icon: Icons.check_circle,
+              //   title: 'Order Completed',
+              //   subtitle: 'FE005 order delivered',
+              //   time: '2 hours ago',
+              // ),
             ],
           ),
         ),

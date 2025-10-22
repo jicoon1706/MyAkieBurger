@@ -6,11 +6,13 @@ import 'package:myakieburger/theme/app_colors.dart';
 class OrderDetailsPopup extends StatefulWidget {
   final Map<String, dynamic> order;
   final VoidCallback? onOrderCancelled;
+  final bool isAdminView; // 👈 New parameter to detect admin mode
 
   const OrderDetailsPopup({
     super.key,
     required this.order,
     this.onOrderCancelled,
+    this.isAdminView = false, // Default to franchisee view
   });
 
   @override
@@ -19,6 +21,11 @@ class OrderDetailsPopup extends StatefulWidget {
 
 class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
   bool _isCancelling = false;
+  bool _isUpdating = false;
+
+  // Dynamic color getters based on view mode
+  Color get _primaryColor => widget.isAdminView ? AppColors.admin : AppColors.primaryRed;
+  Color get _accentColor => widget.isAdminView ? AppColors.lightPurple : AppColors.accentRed;
 
   Future<void> _cancelOrder() async {
     // Show confirmation dialog
@@ -61,10 +68,10 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
           .collection('supply_orders_all')
           .doc(orderId)
           .update({
-        'status': 'Cancelled',
-        'cancelled_at': FieldValue.serverTimestamp(),
-        'updated_at': FieldValue.serverTimestamp(),
-      });
+            'status': 'Cancelled',
+            'cancelled_at': FieldValue.serverTimestamp(),
+            'updated_at': FieldValue.serverTimestamp(),
+          });
 
       if (mounted) {
         // Close popup
@@ -94,10 +101,51 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
     }
   }
 
+  Future<void> _updateOrderStatus(String newStatus) async {
+    setState(() => _isUpdating = true);
+
+    try {
+      final orderId = widget.order['supplyOrderId'];
+      if (orderId == null) {
+        throw Exception('Order ID not found');
+      }
+
+      await FirebaseFirestore.instance
+          .collection('supply_orders_all')
+          .doc(orderId)
+          .update({
+            'status': newStatus,
+            'updated_at': FieldValue.serverTimestamp(),
+          });
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Order marked as $newStatus'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        widget.onOrderCancelled?.call();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isUpdating = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update order: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final status = widget.order['status'] ?? 'Unknown';
-    final orderNumber = widget.order['order_number'] ?? widget.order['supplyOrderId'] ?? 'N/A';
+    final orderNumber =
+        widget.order['order_number'] ?? widget.order['supplyOrderId'] ?? 'N/A';
     final totalAmount = widget.order['total_amount'] ?? 0.0;
     final ingredients = widget.order['ingredients'] as List<dynamic>? ?? [];
     final paymentMethod = widget.order['payment_method'] ?? 'N/A';
@@ -122,11 +170,11 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header
+            // Header - Dynamic color based on view mode
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: AppColors.primaryRed,
+                color: _primaryColor, // 👈 Dynamic color
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(20),
                   topRight: Radius.circular(20),
@@ -151,9 +199,9 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Order Details',
-                          style: TextStyle(
+                        Text(
+                          widget.isAdminView ? 'Order Details (Admin)' : 'Order Details',
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -225,26 +273,28 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
                     const SizedBox(height: 24),
 
                     // Order Information
-                    _buildInfoSection(
-                      'Order Information',
-                      [
-                        _buildInfoRow(Icons.calendar_today, 'Order Date', createdAt),
-                        _buildInfoRow(Icons.payment, 'Payment Method', paymentMethod),
-                        _buildInfoRow(
-                          Icons.store,
-                          'Franchisee',
-                          widget.order['franchisee_name'] ?? 'N/A',
-                        ),
-                      ],
-                    ),
+                    _buildInfoSection('Order Information', [
+                      _buildInfoRow(
+                        Icons.calendar_today,
+                        'Order Date',
+                        createdAt,
+                      ),
+                      _buildInfoRow(
+                        Icons.payment,
+                        'Payment Method',
+                        paymentMethod,
+                      ),
+                      _buildInfoRow(
+                        Icons.store,
+                        'Franchisee',
+                        widget.order['franchisee_name'] ?? 'N/A',
+                      ),
+                    ]),
 
                     const SizedBox(height: 20),
 
                     // Ingredients List
-                    _buildInfoSection(
-                      'Items Ordered',
-                      [],
-                    ),
+                    _buildInfoSection('Items Ordered', []),
                     const SizedBox(height: 8),
 
                     if (ingredients.isEmpty)
@@ -283,7 +333,7 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
-                            color: AppColors.primaryRed,
+                            color: _accentColor, // 👈 Dynamic color
                           ),
                         ),
                       ],
@@ -291,96 +341,11 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
 
                     const SizedBox(height: 20),
 
-                    // Action Buttons - Different based on status
-                    if (isPending)
-                      // Pending: Show Cancel and Close buttons
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: _isCancelling ? null : _cancelOrder,
-                              icon: _isCancelling
-                                  ? const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : const Icon(Icons.cancel),
-                              label: Text(_isCancelling ? 'Cancelling...' : 'Cancel Order'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.red,
-                                side: const BorderSide(color: Colors.red),
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: _isCancelling ? null : () => Navigator.pop(context),
-                              icon: const Icon(Icons.close),
-                              label: const Text('Close'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.grey[600],
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      )
+                    // Action Buttons - Different for Admin vs Franchisee
+                    if (widget.isAdminView)
+                      _buildAdminActions(status, isPending)
                     else
-                      // Completed/Cancelled: Show Download and Close buttons
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: () {
-                                Navigator.pop(context);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Downloading invoice...'),
-                                  ),
-                                );
-                              },
-                              icon: const Icon(Icons.download),
-                              label: const Text('Download'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: AppColors.primaryRed,
-                                side: BorderSide(color: AppColors.primaryRed),
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: () => Navigator.pop(context),
-                              icon: const Icon(Icons.check),
-                              label: const Text('Close'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primaryRed,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                      _buildFranchiseeActions(isPending),
                   ],
                 ),
               ),
@@ -389,6 +354,183 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
         ),
       ),
     );
+  }
+
+  // Admin-specific action buttons
+  Widget _buildAdminActions(String status, bool isPending) {
+    if (isPending) {
+      return Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _isUpdating ? null : () => _updateOrderStatus('Completed'),
+                  icon: _isUpdating
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.check_circle),
+                  label: const Text('Mark Complete'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _isUpdating ? null : _cancelOrder,
+                  icon: const Icon(Icons.cancel),
+                  label: const Text('Cancel Order'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: const BorderSide(color: Colors.red),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _isUpdating ? null : () => Navigator.pop(context),
+              icon: const Icon(Icons.close),
+              label: const Text('Close'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.grey[600],
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    } else {
+      // Completed/Cancelled orders - just show close button
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.check),
+          label: const Text('Close'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _primaryColor,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
+  // Franchisee-specific action buttons
+  Widget _buildFranchiseeActions(bool isPending) {
+    if (isPending) {
+      return Row(
+        children: [
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: _isCancelling ? null : _cancelOrder,
+              icon: _isCancelling
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.cancel),
+              label: Text(_isCancelling ? 'Cancelling...' : 'Cancel Order'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.red,
+                side: const BorderSide(color: Colors.red),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: _isCancelling ? null : () => Navigator.pop(context),
+              icon: const Icon(Icons.close),
+              label: const Text('Close'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.grey[600],
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    } else {
+      return Row(
+        children: [
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Downloading invoice...')),
+                );
+              },
+              icon: const Icon(Icons.download),
+              label: const Text('Download'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _accentColor,
+                side: BorderSide(color: _accentColor),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.check),
+              label: const Text('Close'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _primaryColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
   }
 
   Widget _buildInfoSection(String title, List<Widget> children) {
@@ -422,10 +564,7 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
               children: [
                 Text(
                   label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -464,12 +603,12 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: AppColors.primaryRed.withOpacity(0.1),
+              color: _accentColor.withOpacity(0.1), // 👈 Dynamic color
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
               Icons.inventory_2,
-              color: AppColors.primaryRed,
+              color: _accentColor, // 👈 Dynamic color
               size: 20,
             ),
           ),
@@ -488,10 +627,7 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
                 const SizedBox(height: 4),
                 Text(
                   '$quantity × RM ${unitPrice.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                 ),
               ],
             ),
