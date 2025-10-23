@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:myakieburger/theme/app_colors.dart';
 import 'package:myakieburger/routes.dart';
+import 'package:myakieburger/domains/user_model.dart';
+import 'package:myakieburger/services/auth_service.dart';
+import 'package:myakieburger/providers/user_controller.dart';
+import 'package:myakieburger/views/manage_user/edit_profile.dart';
+import 'package:myakieburger/views/manage_user/my_store_page.dart';
 
 class FranchiseeProfile extends StatefulWidget {
   const FranchiseeProfile({super.key});
@@ -12,24 +17,119 @@ class FranchiseeProfile extends StatefulWidget {
 class _FranchiseeProfileState extends State<FranchiseeProfile> {
   bool pushNotifications = true;
   bool faceID = true;
+  final UserController _userController = UserController();
 
-  void _editProfile() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Profile'),
-        content: const Text('Navigate to edit profile page'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
+  UserModel? _user;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
   }
 
-  void _handleMyStores() {}
+  Future<void> _loadUserData() async {
+    try {
+      final userId = await getLoggedInUserId();
+
+      if (userId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No logged-in user found'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      final user = await _userController.getUserById(userId);
+
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('User data not found'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      setState(() {
+        _user = user;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('❌ Error loading user data: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to load user data: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _editProfile() async {
+    try {
+      final userId = await getLoggedInUserId();
+
+      if (userId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No logged-in user found'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      final user = await _userController.getUserById(userId);
+
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('User data not found'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      final updatedUser = await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => EditProfilePage(user: user)),
+      );
+
+      if (updatedUser != null && mounted) {
+        setState(() {
+          _user = updatedUser;
+        });
+      }
+    } catch (e) {
+      print('❌ Error navigating to edit profile: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to open Edit Profile: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _handleMyStores() async {
+  final updatedUser = await Navigator.push(
+    context,
+    MaterialPageRoute(builder: (_) => const MyStorePage()),
+  );
+
+  // Refresh profile data if store updated
+  if (updatedUser != null && mounted) {
+    setState(() {
+      _user = updatedUser;
+    });
+  }
+}
+
   void _handleSupport() {}
   void _handlePINCode() {}
   void _handleLogout() {
@@ -59,7 +159,7 @@ class _FranchiseeProfileState extends State<FranchiseeProfile> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.primaryRed, // 🔴 matches homepage theme
+      backgroundColor: AppColors.primaryRed,
       appBar: AppBar(
         backgroundColor: AppColors.primaryRed,
         elevation: 0,
@@ -77,137 +177,141 @@ class _FranchiseeProfileState extends State<FranchiseeProfile> {
           ),
         ),
       ),
-      body: Container(
-        width: double.infinity,
-        height: double.infinity, // 👈 ensures full screen coverage
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                const SizedBox(height: 20),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: Colors.white))
+          : Container(
+              width: double.infinity,
+              height: double.infinity,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: SafeArea(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 20),
 
-                // Profile Picture (Icon only)
-                Container(
-                  width: 100,
-                  height: 100,
-                  decoration: const BoxDecoration(
-                    color: AppColors.lightRed,
-                    shape: BoxShape.circle,
+                      // Profile Picture
+                      Container(
+                        width: 100,
+                        height: 100,
+                        decoration: const BoxDecoration(
+                          color: AppColors.lightRed,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.person,
+                          size: 60,
+                          color: AppColors.white,
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // 🧑 Display actual username
+                      Text(
+                        _user?.username ?? 'No username',
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+
+                      const SizedBox(height: 4),
+
+                      // ✉️ Display actual email
+                      Text(
+                        _user?.email ?? 'No email',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Edit Profile Button
+                      ElevatedButton(
+                        onPressed: _editProfile,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryRed,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 40,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(25),
+                          ),
+                        ),
+                        child: const Text(
+                          'Edit profile',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 32),
+
+                      _buildSectionTitle('Inventories'),
+                      _buildCard(
+                        children: [
+                          _buildMenuItem(
+                            icon: Icons.store_outlined,
+                            title: 'My stores',
+                            badge: '2',
+                            onTap: _handleMyStores,
+                          ),
+                        ],
+                      ),
+
+                      // const SizedBox(height: 24),
+
+                      // _buildSectionTitle('Preferences'),
+                      // _buildCard(
+                      //   children: [
+                      //     _buildToggleMenuItem(
+                      //       icon: Icons.notifications_outlined,
+                      //       title: 'Push notifications',
+                      //       value: pushNotifications,
+                      //       onChanged: (v) =>
+                      //           setState(() => pushNotifications = v),
+                      //     ),
+                      //     _divider(),
+                      //     _buildMenuItem(
+                      //       icon: Icons.pin_outlined,
+                      //       title: 'PIN Code',
+                      //       onTap: _handlePINCode,
+                      //     ),
+                      //   ],
+                      // ),
+                      const SizedBox(height: 24),
+
+                      _buildCard(
+                        children: [
+                          _buildMenuItem(
+                            icon: Icons.logout,
+                            title: 'Logout',
+                            isDestructive: true,
+                            onTap: _handleLogout,
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 40),
+                    ],
                   ),
-                  child: const Icon(
-                    Icons.person,
-                    size: 60,
-                    color: AppColors.white,
-                  ),
                 ),
-
-                const SizedBox(height: 16),
-
-                // Name
-                const Text(
-                  'Coffeestories',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                ),
-
-                const SizedBox(height: 4),
-
-                // Email
-                Text(
-                  'mark.brock@icloud.com',
-                  style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-                ),
-
-                const SizedBox(height: 20),
-
-                // Edit Profile Button
-                ElevatedButton(
-                  onPressed: _editProfile,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryRed,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 40,
-                      vertical: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                  ),
-                  child: const Text(
-                    'Edit profile',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                  ),
-                ),
-
-                const SizedBox(height: 32),
-
-                // Inventories Section
-                _buildSectionTitle('Inventories'),
-                _buildCard(
-                  children: [
-                    _buildMenuItem(
-                      icon: Icons.store_outlined,
-                      title: 'My stores',
-                      badge: '2',
-                      onTap: _handleMyStores,
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 24),
-
-                // Preferences Section
-                _buildSectionTitle('Preferences'),
-                _buildCard(
-                  children: [
-                    _buildToggleMenuItem(
-                      icon: Icons.notifications_outlined,
-                      title: 'Push notifications',
-                      value: pushNotifications,
-                      onChanged: (v) => setState(() => pushNotifications = v),
-                    ),
-                    _divider(),
-                    _buildMenuItem(
-                      icon: Icons.pin_outlined,
-                      title: 'PIN Code',
-                      onTap: _handlePINCode,
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 24),
-
-                // Logout Section
-                _buildCard(
-                  children: [
-                    _buildMenuItem(
-                      icon: Icons.logout,
-                      title: 'Logout',
-                      isDestructive: true,
-                      onTap: _handleLogout,
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 40), // small consistent bottom padding
-              ],
+              ),
             ),
-          ),
-        ),
-      ),
     );
   }
 
-  // 🧱 Helper Widgets
   Widget _buildSectionTitle(String title) => Align(
     alignment: Alignment.centerLeft,
     child: Padding(

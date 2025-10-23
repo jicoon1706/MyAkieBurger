@@ -17,29 +17,31 @@ class _EditProfilePageState extends State<EditProfilePage> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _contactController = TextEditingController(); // 👈 new controller
   final _userController = UserController();
-  
+
   bool _isLoading = false;
+  String? _franchiseeId;
 
   @override
-void initState() {
-  super.initState();
-  _usernameController.text = widget.user.username;
-  _emailController.text = widget.user.email;
-  _loadId();
-}
+  void initState() {
+    super.initState();
+    _usernameController.text = widget.user.username;
+    _emailController.text = widget.user.email;
+    _contactController.text =
+        widget.user.contact ?? ''; // 👈 prefill contact if available
+    _loadId();
+  }
 
-String? _franchiseeId;
-
-Future<void> _loadId() async {
-  _franchiseeId = await getLoggedInUserId(); // 👈 fetch here
-}
-
+  Future<void> _loadId() async {
+    _franchiseeId = await getLoggedInUserId();
+  }
 
   @override
   void dispose() {
     _usernameController.dispose();
     _emailController.dispose();
+    _contactController.dispose();
     super.dispose();
   }
 
@@ -59,7 +61,7 @@ Future<void> _loadId() async {
         role: widget.user.role,
         stallName: widget.user.stallName,
         region: widget.user.region,
-        contact: widget.user.contact,
+        contact: _contactController.text.trim(), // 👈 update contact
         createdAt: widget.user.createdAt,
       );
 
@@ -168,39 +170,11 @@ Future<void> _loadId() async {
                   const SizedBox(height: 40),
 
                   // Username Field
-                  Text(
-                    'Username',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey.shade700,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextFormField(
+                  _buildLabel('Username'),
+                  _buildTextField(
                     controller: _usernameController,
-                    decoration: InputDecoration(
-                      hintText: 'Enter your username',
-                      prefixIcon: Icon(Icons.person_outline, color: Colors.grey.shade600),
-                      filled: true,
-                      fillColor: Colors.grey.shade50,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade200),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: AppColors.primaryRed, width: 2),
-                      ),
-                      errorBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Colors.red),
-                      ),
-                    ),
+                    hintText: 'Enter your username',
+                    icon: Icons.person_outline,
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
                         return 'Username is required';
@@ -215,47 +189,41 @@ Future<void> _loadId() async {
                   const SizedBox(height: 24),
 
                   // Email Field
-                  Text(
-                    'Email',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey.shade700,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextFormField(
+                  _buildLabel('Email'),
+                  _buildTextField(
                     controller: _emailController,
+                    hintText: 'Enter your email',
+                    icon: Icons.email_outlined,
                     keyboardType: TextInputType.emailAddress,
-                    decoration: InputDecoration(
-                      hintText: 'Enter your email',
-                      prefixIcon: Icon(Icons.email_outlined, color: Colors.grey.shade600),
-                      filled: true,
-                      fillColor: Colors.grey.shade50,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade200),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: AppColors.primaryRed, width: 2),
-                      ),
-                      errorBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Colors.red),
-                      ),
-                    ),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
                         return 'Email is required';
                       }
-                      final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                      final emailRegex = RegExp(
+                        r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                      );
                       if (!emailRegex.hasMatch(value.trim())) {
                         return 'Enter a valid email address';
+                      }
+                      return null;
+                    },
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // 👇 Contact Number Field
+                  _buildLabel('Contact Number'),
+                  _buildTextField(
+                    controller: _contactController,
+                    hintText: 'Enter your contact number',
+                    icon: Icons.phone_outlined,
+                    keyboardType: TextInputType.phone,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Contact number is required';
+                      }
+                      if (value.trim().length < 9) {
+                        return 'Enter a valid contact number';
                       }
                       return null;
                     },
@@ -304,7 +272,9 @@ Future<void> _loadId() async {
                     width: double.infinity,
                     height: 54,
                     child: OutlinedButton(
-                      onPressed: _isLoading ? null : () => Navigator.pop(context),
+                      onPressed: _isLoading
+                          ? null
+                          : () => Navigator.pop(context),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.primaryRed,
                         side: const BorderSide(color: AppColors.primaryRed),
@@ -327,6 +297,57 @@ Future<void> _loadId() async {
           ),
         ),
       ),
+    );
+  }
+
+  // --- UI helper widgets ---
+  Widget _buildLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: Colors.grey.shade700,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hintText,
+    required IconData icon,
+    TextInputType keyboardType = TextInputType.text,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        hintText: hintText,
+        prefixIcon: Icon(icon, color: Colors.grey.shade600),
+        filled: true,
+        fillColor: Colors.grey.shade50,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade200),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.primaryRed, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.red),
+        ),
+      ),
+      validator: validator,
     );
   }
 }

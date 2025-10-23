@@ -1,4 +1,3 @@
-// lib/controllers/user_controller.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:myakieburger/domains/user_model.dart';
 
@@ -28,20 +27,39 @@ class UserController {
     } catch (e) {
       print("❌ Error registering franchisee: $e");
       rethrow;
-    } 
+    }
   }
 
-  // 👇 NEW: Update user profile
+  // ✅ Update user profile info (username, email, contact)
   Future<void> updateUser(UserModel user) async {
     try {
       await _firestore.collection('users').doc(user.id).update({
         'username': user.username,
         'email': user.email,
-        // Add other fields if needed
+        'contact': user.contact,
+        'updated_at': DateTime.now().toIso8601String(),
       });
       print("✅ User profile updated: ${user.username}");
     } catch (e) {
-      print("❌ Error updating user: $e");
+      print("❌ Error updating user profile: $e");
+      rethrow;
+    }
+  }
+
+  // ✅ NEW: Update store information (stall name & region)
+  Future<void> updateStoreInfo(String userId, {
+    required String stallName,
+    required String region,
+  }) async {
+    try {
+      await _firestore.collection('users').doc(userId).update({
+        'stall_name': stallName,
+        'region': region,
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+      print("✅ Store info updated for user ID: $userId");
+    } catch (e) {
+      print("❌ Error updating store info: $e");
       rethrow;
     }
   }

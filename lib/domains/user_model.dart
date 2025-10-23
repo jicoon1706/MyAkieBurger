@@ -1,7 +1,7 @@
 class UserModel {
   final String id;
   final String name;
-  final String username; // 👈 added
+  final String username;
   final String email;
   final String password;
   final String role;
@@ -13,7 +13,7 @@ class UserModel {
   UserModel({
     required this.id,
     required this.name,
-    required this.username, // 👈 added
+    required this.username,
     required this.email,
     required this.password,
     required this.role,
@@ -27,7 +27,7 @@ class UserModel {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'username': username, // 👈 added
+      'username': username,
       'email': email,
       'password': password,
       'role': role,
@@ -43,7 +43,7 @@ class UserModel {
     return UserModel(
       id: id,
       name: map['name'] ?? '',
-      username: map['username'] ?? '', // 👈 added
+      username: map['username'] ?? '',
       email: map['email'] ?? '',
       password: map['password'] ?? '',
       role: map['role'] ?? '',
@@ -51,6 +51,31 @@ class UserModel {
       region: map['region'] ?? '',
       contact: map['contact'] ?? '',
       createdAt: DateTime.parse(map['created_at']),
+    );
+  }
+
+  // ✅ copyWith method (works even with non-nullable fields)
+  UserModel copyWith({
+    String? name,
+    String? username,
+    String? email,
+    String? password,
+    String? role,
+    String? stallName,
+    String? region,
+    String? contact,
+  }) {
+    return UserModel(
+      id: id,
+      name: name ?? this.name,
+      username: username ?? this.username,
+      email: email ?? this.email,
+      password: password ?? this.password,
+      role: role ?? this.role,
+      stallName: stallName ?? this.stallName,
+      region: region ?? this.region,
+      contact: contact ?? this.contact,
+      createdAt: createdAt,
     );
   }
 }

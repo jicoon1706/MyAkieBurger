@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:myakieburger/theme/app_colors.dart';
 import 'package:myakieburger/routes.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AdminProfile extends StatefulWidget {
   const AdminProfile({super.key});
@@ -13,21 +14,54 @@ class _AdminProfileState extends State<AdminProfile> {
   bool pushNotifications = true;
   bool faceID = true;
 
-  void _editProfile() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Profile'),
-        content: const Text('Navigate to edit profile page'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
+  String? _adminName;
+  String? _adminEmail;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchAdminData();
   }
+
+  Future<void> _fetchAdminData() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc('admin_001')
+          .get();
+
+      if (snapshot.exists) {
+        setState(() {
+          _adminName = snapshot['name'];
+          _adminEmail = snapshot['email'];
+          _isLoading = false;
+        });
+      } else {
+        setState(() => _isLoading = false);
+        print('⚠️ Admin document not found.');
+      }
+    } catch (e) {
+      print('❌ Error fetching admin data: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  // void _editProfile() {
+  //   showDialog(
+  //     context: context,
+  //     builder: (context) => AlertDialog(
+  //       title: const Text('Edit Profile'),
+  //       content: const Text('Navigate to edit profile page'),
+  //       actions: [
+  //         TextButton(
+  //           onPressed: () => Navigator.pop(context),
+  //           child: const Text('Close'),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
   void _handleManageUsers() {}
   void _handleReports() {}
@@ -108,88 +142,93 @@ class _AdminProfileState extends State<AdminProfile> {
 
                 const SizedBox(height: 16),
 
-                // Name
-                const Text(
-                  'Admin User',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                ),
-
-                const SizedBox(height: 4),
-
-                // Email
-                Text(
-                  'admin@myakieburger.com',
-                  style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-                ),
+                _isLoading
+                    ? const CircularProgressIndicator()
+                    : Column(
+                        children: [
+                          Text(
+                            _adminName ?? 'Unknown Admin',
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _adminEmail ?? 'No email available',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
 
                 const SizedBox(height: 20),
 
                 // Edit Profile
-                ElevatedButton(
-                  onPressed: _editProfile,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.admin,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 40,
-                      vertical: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                  ),
-                  child: const Text(
-                    'Edit profile',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                  ),
-                ),
+                // ElevatedButton(
+                //   onPressed: _editProfile,
+                //   style: ElevatedButton.styleFrom(
+                //     backgroundColor: AppColors.admin,
+                //     foregroundColor: Colors.white,
+                //     padding: const EdgeInsets.symmetric(
+                //       horizontal: 40,
+                //       vertical: 12,
+                //     ),
+                //     shape: RoundedRectangleBorder(
+                //       borderRadius: BorderRadius.circular(25),
+                //     ),
+                //   ),
+                //   child: const Text(
+                //     'Edit profile',
+                //     style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                //   ),
+                // ),
 
-                const SizedBox(height: 32),
+                // const SizedBox(height: 32),
 
                 // Management Section
-                _buildSectionTitle('Management'),
-                _buildCard(
-                  children: [
-                    _buildMenuItem(
-                      icon: Icons.people_outline,
-                      title: 'Manage Users',
-                      onTap: _handleManageUsers,
-                    ),
-                    _divider(),
-                    _buildMenuItem(
-                      icon: Icons.bar_chart_outlined,
-                      title: 'Reports',
-                      onTap: _handleReports,
-                    ),
-                  ],
-                ),
+                // _buildSectionTitle('Management'),
+                // _buildCard(
+                //   children: [
+                //     _buildMenuItem(
+                //       icon: Icons.people_outline,
+                //       title: 'Manage Users',
+                //       onTap: _handleManageUsers,
+                //     ),
+                //     _divider(),
+                //     _buildMenuItem(
+                //       icon: Icons.bar_chart_outlined,
+                //       title: 'Reports',
+                //       onTap: _handleReports,
+                //     ),
+                //   ],
+                // ),
 
-                const SizedBox(height: 24),
+                // const SizedBox(height: 24),
 
                 // Preferences Section
-                _buildSectionTitle('Preferences'),
-                _buildCard(
-                  children: [
-                    _buildToggleMenuItem(
-                      icon: Icons.notifications_outlined,
-                      title: 'Push Notifications',
-                      value: pushNotifications,
-                      onChanged: (v) => setState(() => pushNotifications = v),
-                    ),
-                    _divider(),
-                    _buildMenuItem(
-                      icon: Icons.settings_outlined,
-                      title: 'Settings',
-                      onTap: _handleSettings,
-                    ),
-                  ],
-                ),
+                // _buildSectionTitle('Preferences'),
+                // _buildCard(
+                //   children: [
+                //     _buildToggleMenuItem(
+                //       icon: Icons.notifications_outlined,
+                //       title: 'Push Notifications',
+                //       value: pushNotifications,
+                //       onChanged: (v) => setState(() => pushNotifications = v),
+                //     ),
+                //     _divider(),
+                //     _buildMenuItem(
+                //       icon: Icons.settings_outlined,
+                //       title: 'Settings',
+                //       onTap: _handleSettings,
+                //     ),
+                //   ],
+                // ),
 
-                const SizedBox(height: 24),
+                // const SizedBox(height: 24),
 
                 // Logout Section
                 _buildCard(
