@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:myakieburger/theme/app_colors.dart';
 import 'package:myakieburger/routes.dart';
+import 'package:myakieburger/services/auth_service.dart';
+import 'package:myakieburger/providers/meal_order_controller.dart';
 
 class AnalysisPage extends StatefulWidget {
   const AnalysisPage({super.key});
@@ -10,13 +12,16 @@ class AnalysisPage extends StatefulWidget {
 }
 
 class _AnalysisPageState extends State<AnalysisPage> {
-  String _selectedPeriod = 'Week';
-  String? _selectedWeek;
+  String _selectedPeriod = 'Month';
   String? _selectedMonth;
   String? _selectedYear;
 
-  final List<String> _periods = ['Week', 'Month', 'Year'];
-  final List<String> _weeks = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
+  final MealOrderController _mealOrderController = MealOrderController();
+
+  double? _totalSales; // holds fetched total sales
+  bool _isLoading = false;
+
+  final List<String> _periods = ['Month', 'Year'];
   final List<String> _months = [
     'January',
     'February',
@@ -33,7 +38,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
   ];
   final List<String> _years = ['2023', '2024', '2025'];
 
-  // Sample data for the chart
+  // Sample data for chart
   final List<Map<String, dynamic>> _chartData = [
     {'day': 'M', 'value': 120},
     {'day': 'T', 'value': 180},
@@ -47,49 +52,92 @@ class _AnalysisPageState extends State<AnalysisPage> {
   @override
   void initState() {
     super.initState();
-    _selectedWeek = _weeks[0];
     _selectedMonth = 'May';
     _selectedYear = '2025';
+    _fetchSalesData(); // 🟢 load initial sales
   }
 
   String get _displayTitle {
-    if (_selectedPeriod == 'Week') {
-      return 'Total Sales ($_selectedWeek, $_selectedMonth $_selectedYear)';
-    } else if (_selectedPeriod == 'Month') {
-      return 'Total Sales ($_selectedMonth $_selectedYear)';
+    if (_selectedPeriod == 'Month') {
+      return 'Monthly Sales ($_selectedYear)';
     } else {
-      return 'Total Sales ($_selectedYear)';
+      return 'Yearly Sales Overview';
     }
   }
 
-  // Sample ranking data
   final List<Map<String, dynamic>> _rankings = [
-    {
-      'id': 'FE001',
-      'name': 'Tasik Chini',
-      'sales': 200.00,
-      'avatar': Icons.person,
-    },
-    {
-      'id': 'FE005',
-      'name': 'Sri Kuantan',
-      'sales': 150.00,
-      'avatar': Icons.person,
-    },
-    {
-      'id': 'FE009',
-      'name': 'Taman Perdana',
-      'sales': 100.00,
-      'avatar': Icons.person,
-    },
-    {
-      'id': 'FE006',
-      'name': 'Alor Setar',
-      'sales': 50.00,
-      'avatar': Icons.person,
-    },
-    {'id': 'FE002', 'name': 'Gombak', 'sales': 20.00, 'avatar': Icons.person},
+    {'id': 'FE001', 'name': 'Tasik Chini', 'sales': 200.00},
+    {'id': 'FE005', 'name': 'Sri Kuantan', 'sales': 150.00},
+    {'id': 'FE009', 'name': 'Taman Perdana', 'sales': 100.00},
+    {'id': 'FE006', 'name': 'Alor Setar', 'sales': 50.00},
+    {'id': 'FE002', 'name': 'Gombak', 'sales': 20.00},
   ];
+
+  Future<void> _fetchSalesData() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final franchiseeId = await getLoggedInUserId();
+      if (franchiseeId == null) {
+        print('❌ No logged-in user found.');
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      Map<String, dynamic> result = {};
+      List<Map<String, dynamic>> chartPoints = [];
+
+      if (_selectedPeriod == 'Month') {
+        final yearNumber = int.parse(_selectedYear!);
+        // Fetch sales per month for the selected year
+        for (int month = 1; month <= 12; month++) {
+          final data = await _mealOrderController.getSalesByMonth(
+            franchiseeId,
+            month,
+            yearNumber,
+          );
+          chartPoints.add({
+            'label': _months[month - 1].substring(0, 3), // Jan, Feb, ...
+            'value': data['totalSales'] ?? 0.0,
+          });
+        }
+        result['totalSales'] = chartPoints.fold(
+          0.0,
+          (sum, e) => sum + e['value'],
+        );
+      } else if (_selectedPeriod == 'Year') {
+        // Get all possible years with sales
+        chartPoints = [];
+        for (final y in _years) {
+          final data = await _mealOrderController.getSalesByYear(
+            franchiseeId,
+            int.parse(y),
+          );
+          final sales = data['totalSales'] ?? 0.0;
+          if (sales > 0) {
+            chartPoints.add({'label': y, 'value': sales});
+          }
+        }
+        result['totalSales'] = chartPoints.fold(
+          0.0,
+          (sum, e) => sum + e['value'],
+        );
+      }
+
+      setState(() {
+        _totalSales = result['totalSales'];
+        _chartData
+          ..clear()
+          ..addAll(chartPoints);
+        _isLoading = false;
+      });
+
+      print('✅ Total Sales: RM ${_totalSales!.toStringAsFixed(2)}');
+    } catch (e) {
+      print('❌ Error fetching sales data: $e');
+      setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -118,7 +166,6 @@ class _AnalysisPageState extends State<AnalysisPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Title
               Text(
                 _displayTitle,
                 style: const TextStyle(
@@ -127,9 +174,28 @@ class _AnalysisPageState extends State<AnalysisPage> {
                   fontWeight: FontWeight.w600,
                 ),
               ),
+              const SizedBox(height: 8),
+
+              // Loading / Total Sales
+              // if (_isLoading)
+              //   const Center(
+              //     child: CircularProgressIndicator(color: Colors.white),
+              //   )
+              // else if (_totalSales != null)
+              //   Padding(
+              //     padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
+              //     child: Text(
+              //       'RM ${_totalSales!.toStringAsFixed(2)}',
+              //       style: const TextStyle(
+              //         color: Colors.white,
+              //         fontSize: 20,
+              //         fontWeight: FontWeight.bold,
+              //       ),
+              //     ),
+              //   ),
               const SizedBox(height: 16),
 
-              // Period Filter (Week/Month/Year)
+              // Period Filter
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
@@ -154,124 +220,80 @@ class _AnalysisPageState extends State<AnalysisPage> {
                     setState(() {
                       _selectedPeriod = value!;
                     });
+                    _fetchSalesData();
                   },
                 ),
               ),
+
               const SizedBox(height: 12),
 
-              // Dynamic Filters based on selected period
               _buildDynamicFilters(),
               const SizedBox(height: 20),
 
-              // Bar Chart Container
+              // Chart
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Column(
-                  children: [
-                    // Chart
-                    SizedBox(height: 250, child: _buildBarChart()),
-                  ],
-                ),
+                child: SizedBox(height: 300, child: _buildBarChart()),
               ),
+
               const SizedBox(height: 24),
 
-              // Sales Ranking Header + "View All"
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Sales Ranking',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      const Text(
-                        'My Rank : 20',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pushNamed(
-                            context,
-                            Routes.franchiseesSalesLeaderboard,
-                          );
-                        },
-                        child: const Text(
-                          'View All',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            decoration: TextDecoration.underline,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+              // Ranking Section
+              // Row(
+              //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              //   children: [
+              //     const Text(
+              //       'Sales Ranking',
+              //       style: TextStyle(
+              //         color: Colors.white,
+              //         fontSize: 18,
+              //         fontWeight: FontWeight.bold,
+              //       ),
+              //     ),
+              //     TextButton(
+              //       onPressed: () {
+              //         Navigator.pushNamed(
+              //           context,
+              //           Routes.franchiseesSalesLeaderboard,
+              //         );
+              //       },
+              //       child: const Text(
+              //         'View All',
+              //         style: TextStyle(
+              //           color: Colors.white,
+              //           fontSize: 14,
+              //           decoration: TextDecoration.underline,
+              //         ),
+              //       ),
+              //     ),
+              //   ],
+              // ),
+              // const SizedBox(height: 16),
 
-              const SizedBox(height: 16),
-
-              // Ranking List
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  children: [
-                    // Header Row
-                    Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: const [
-                          Text(
-                            'Franchisee',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey,
-                            ),
-                          ),
-                          Text(
-                            'Sales (RM)',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Ranking Items
-                    ..._rankings.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      final franchisee = entry.value;
-                      return _buildRankingItem(
-                        rank: index + 1,
-                        id: franchisee['id'],
-                        name: franchisee['name'],
-                        sales: franchisee['sales'],
-                      );
-                    }).toList(),
-                  ],
-                ),
-              ),
+              // Container(
+              //   decoration: BoxDecoration(
+              //     color: Colors.white,
+              //     borderRadius: BorderRadius.circular(12),
+              //   ),
+              //   child: Column(
+              //     children: _rankings
+              //         .asMap()
+              //         .entries
+              //         .map(
+              //           (entry) => _buildRankingItem(
+              //             rank: entry.key + 1,
+              //             id: entry.value['id'],
+              //             name: entry.value['name'],
+              //             sales: entry.value['sales'],
+              //           ),
+              //         )
+              //         .toList(),
+              //   ),
+              // ),
             ],
           ),
         ),
@@ -279,122 +301,182 @@ class _AnalysisPageState extends State<AnalysisPage> {
     );
   }
 
-  Widget _buildDropdown({
-    required String label,
-    required String value,
-    required Function(String?) onChanged,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: DropdownButton<String>(
-        value: value,
-        isExpanded: true,
-        underline: const SizedBox(),
-        hint: Text(label),
-        items: [
-          DropdownMenuItem(value: 'All Time', child: Text(label)),
-          DropdownMenuItem(value: 'Sales', child: Text(label)),
-        ],
-        onChanged: onChanged,
-      ),
-    );
-  }
-
   Widget _buildDynamicFilters() {
-    if (_selectedPeriod == 'Week') {
-      // Show Week, Month, and Year dropdowns
-      return Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: _buildFilterDropdown(
-                  label: 'Week',
-                  value: _selectedWeek!,
-                  items: _weeks,
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedWeek = value!;
-                    });
-                  },
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildFilterDropdown(
-                  label: 'Month',
-                  value: _selectedMonth!,
-                  items: _months,
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedMonth = value!;
-                    });
-                  },
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          _buildFilterDropdown(
-            label: 'Year',
-            value: _selectedYear!,
-            items: _years,
-            onChanged: (value) {
-              setState(() {
-                _selectedYear = value!;
-              });
-            },
-          ),
-        ],
-      );
-    } else if (_selectedPeriod == 'Month') {
-      // Show Month and Year dropdowns
-      return Row(
-        children: [
-          Expanded(
-            child: _buildFilterDropdown(
-              label: 'Month',
-              value: _selectedMonth!,
-              items: _months,
-              onChanged: (value) {
-                setState(() {
-                  _selectedMonth = value!;
-                });
-              },
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _buildFilterDropdown(
-              label: 'Year',
-              value: _selectedYear!,
-              items: _years,
-              onChanged: (value) {
-                setState(() {
-                  _selectedYear = value!;
-                });
-              },
-            ),
-          ),
-        ],
-      );
-    } else {
-      // Show only Year dropdown
+    if (_selectedPeriod == 'Month') {
       return _buildFilterDropdown(
         label: 'Year',
         value: _selectedYear!,
         items: _years,
         onChanged: (value) {
-          setState(() {
-            _selectedYear = value!;
-          });
+          setState(() => _selectedYear = value!);
+          _fetchSalesData(); // refresh data
         },
       );
+    } else {
+      // Period == Year
+      return const SizedBox(); // no filters for year mode
     }
+  }
+
+  // Add this as a class member at the top of _AnalysisPageState
+  final ScrollController _chartScrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _chartScrollController.dispose();
+    super.dispose();
+  }
+
+  Widget _buildBarChart() {
+    if (_chartData.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.bar_chart_rounded, size: 48, color: Colors.grey[400]),
+            const SizedBox(height: 12),
+            Text(
+              'No data available',
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final List<double> values = _chartData
+        .map((e) => (e['value'] as num).toDouble())
+        .toList();
+    final double maxValue = values.reduce((a, b) => a > b ? a : b);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0), // prevent overflow
+      child: SingleChildScrollView(
+        controller: _chartScrollController,
+        scrollDirection: Axis.horizontal,
+        child: Column(
+          children: [
+            // Chart area
+            SizedBox(
+              width: _chartData.length * 50.0,
+              height: 230,
+              child: Stack(
+                children: [
+                  // Horizontal grid lines
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: List.generate(
+                      5,
+                      (index) => Container(height: 1, color: Colors.grey[200]),
+                    ),
+                  ),
+
+                  // Bars
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: _chartData.asMap().entries.map((entry) {
+                        final data = entry.value;
+                        final double value = (data['value'] as num).toDouble();
+                        final double height = maxValue > 0
+                            ? (value / maxValue) * 185.0
+                            : 0.0;
+
+                        return SizedBox(
+                          width: 50,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                if (value > 0)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 4),
+                                    child: Text(
+                                      value >= 1000
+                                          ? '${(value / 1000).toStringAsFixed(1)}K'
+                                          : value.toStringAsFixed(0),
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.grey[700],
+                                      ),
+                                    ),
+                                  ),
+                                Container(
+                                  width: 34,
+                                  height: height,
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.bottomCenter,
+                                      end: Alignment.topCenter,
+                                      colors: [
+                                        AppColors.chartRed,
+                                        AppColors.chartRed.withOpacity(0.7),
+                                      ],
+                                    ),
+                                    borderRadius: const BorderRadius.only(
+                                      topLeft: Radius.circular(8),
+                                      topRight: Radius.circular(8),
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: AppColors.chartRed.withOpacity(
+                                          0.3,
+                                        ),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // X-axis separator and labels
+            SizedBox(
+              width: _chartData.length * 50.0,
+              child: Column(
+                children: [
+                  Container(height: 2, color: Colors.grey[300]),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: _chartData.map((data) {
+                      final label = data['label']?.toString() ?? '';
+                      return SizedBox(
+                        width: 50,
+                        child: Text(
+                          label,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildFilterDropdown({
@@ -422,48 +504,6 @@ class _AnalysisPageState extends State<AnalysisPage> {
     );
   }
 
-  Widget _buildBarChart() {
-    final maxValue = _chartData
-        .map((e) => e['value'] as int)
-        .reduce((a, b) => a > b ? a : b);
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
-      children: _chartData.map((data) {
-        final value = data['value'] as int;
-        final height = (value / maxValue) * 200;
-
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            // Value label above bar
-            Text(
-              value.toString(),
-              style: const TextStyle(fontSize: 10, color: Colors.black),
-            ),
-            const SizedBox(height: 4),
-            // Bar
-            Container(
-              width: 35,
-              height: height,
-              decoration: BoxDecoration(
-                color: AppColors.chartRed,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-            const SizedBox(height: 8),
-            // Day label
-            Text(
-              data['day'],
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            ),
-          ],
-        );
-      }).toList(),
-    );
-  }
-
   Widget _buildRankingItem({
     required int rank,
     required String id,
@@ -488,7 +528,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
       ),
       child: Row(
         children: [
-          // Rank Badge
+          // Rank
           Container(
             width: 32,
             height: 32,
@@ -505,14 +545,12 @@ class _AnalysisPageState extends State<AnalysisPage> {
             ),
           ),
           const SizedBox(width: 12),
-          // Avatar
           CircleAvatar(
             radius: 20,
             backgroundColor: Colors.grey[300],
             child: const Icon(Icons.person, size: 24),
           ),
           const SizedBox(width: 12),
-          // Name and ID
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -531,7 +569,6 @@ class _AnalysisPageState extends State<AnalysisPage> {
               ],
             ),
           ),
-          // Sales
           Text(
             sales.toStringAsFixed(2),
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),

@@ -406,3 +406,96 @@ class MealOrderController {
     }
   }
 }
+
+extension MealOrderAnalysis on MealOrderController {
+  /// 🔹 Get total sales for a specific month of a given year
+  Future<Map<String, dynamic>> getSalesByMonth(
+    String franchiseeId,
+    int month,
+    int year,
+  ) async {
+    try {
+      final monthStart = DateTime(year, month, 1);
+      final nextMonth = (month == 12)
+          ? DateTime(year + 1, 1, 1)
+          : DateTime(year, month + 1, 1);
+      final monthEnd = nextMonth.subtract(const Duration(seconds: 1));
+
+      final dateFormat = DateFormat('dd/MM/yyyy HH:mm:ss');
+      double totalSales = 0.0;
+      List<Map<String, dynamic>> orders = [];
+
+      final snapshot = await _firestore
+          .collection('meal_orders_all')
+          .where('franchiseeId', isEqualTo: franchiseeId)
+          .get();
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final createdAtStr = data['created_at'] as String;
+        final createdAt = dateFormat.parse(createdAtStr);
+
+        if (createdAt.isAfter(
+              monthStart.subtract(const Duration(seconds: 1)),
+            ) &&
+            createdAt.isBefore(monthEnd.add(const Duration(seconds: 1)))) {
+          final amount = data['total_amount'];
+          final amountDouble = (amount is int)
+              ? amount.toDouble()
+              : (amount ?? 0.0);
+          totalSales += amountDouble;
+          orders.add({...data, 'parsed_date': createdAt});
+        }
+      }
+
+      print(
+        "📅 $year-$month → Total Sales: RM ${totalSales.toStringAsFixed(2)}",
+      );
+      return {'totalSales': totalSales, 'orders': orders};
+    } catch (e) {
+      print("❌ Error fetching month sales: $e");
+      return {'totalSales': 0.0, 'orders': []};
+    }
+  }
+
+  /// 🔹 Get total sales for a specific year
+  Future<Map<String, dynamic>> getSalesByYear(
+    String franchiseeId,
+    int year,
+  ) async {
+    try {
+      final yearStart = DateTime(year, 1, 1);
+      final yearEnd = DateTime(year, 12, 31, 23, 59, 59);
+      final dateFormat = DateFormat('dd/MM/yyyy HH:mm:ss');
+      double totalSales = 0.0;
+      List<Map<String, dynamic>> orders = [];
+
+      final snapshot = await _firestore
+          .collection('meal_orders_all')
+          .where('franchiseeId', isEqualTo: franchiseeId)
+          .get();
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final createdAtStr = data['created_at'] as String;
+        final createdAt = dateFormat.parse(createdAtStr);
+
+        if (createdAt.isAfter(yearStart.subtract(const Duration(seconds: 1))) &&
+            createdAt.isBefore(yearEnd.add(const Duration(seconds: 1)))) {
+          final amount = data['total_amount'];
+          final amountDouble = (amount is int)
+              ? amount.toDouble()
+              : (amount ?? 0.0);
+          totalSales += amountDouble;
+          orders.add({...data, 'parsed_date': createdAt});
+        }
+      }
+
+      print("📅 $year → Total Sales: RM ${totalSales.toStringAsFixed(2)}");
+      return {'totalSales': totalSales, 'orders': orders};
+    } catch (e) {
+      print("❌ Error fetching year sales: $e");
+      return {'totalSales': 0.0, 'orders': []};
+    }
+  }
+}

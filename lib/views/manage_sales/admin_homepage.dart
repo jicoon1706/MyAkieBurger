@@ -51,9 +51,9 @@ class _AdminHomepageState extends State<AdminHomepage> {
             child: CircleAvatar(
               backgroundColor: Colors.white,
               child: IconButton(
-                icon: Icon(Icons.notifications, color: AppColors.admin),
+                icon: Icon(Icons.show_chart, color: AppColors.admin),
                 onPressed: () {
-                  // TODO: Navigate to notifications
+                  Navigator.pushNamed(context, Routes.analysisPage);
                 },
               ),
             ),
@@ -141,54 +141,54 @@ class _AdminHomepageState extends State<AdminHomepage> {
               // const SizedBox(height: 24),
 
               // Top Performing Franchisees
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Top Franchisees',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pushNamed(
-                        context,
-                        Routes.adminSalesLeaderboard,
-                      );
-                    },
-                    child: const Text(
-                      'View All',
-                      style: TextStyle(color: AppColors.lightPurple),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
+              // Row(
+              //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              //   children: [
+              //     const Text(
+              //       'Top Franchisees',
+              //       style: TextStyle(
+              //         color: Colors.white,
+              //         fontSize: 20,
+              //         fontWeight: FontWeight.bold,
+              //       ),
+              //     ),
+              //     TextButton(
+              //       onPressed: () {
+              //         Navigator.pushNamed(
+              //           context,
+              //           Routes.adminSalesLeaderboard,
+              //         );
+              //       },
+              //       child: const Text(
+              //         'View All',
+              //         style: TextStyle(color: AppColors.lightPurple),
+              //       ),
+              //     ),
+              //   ],
+              // ),
+              // const SizedBox(height: 12),
 
-              // Top Franchisees List
-              Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1E1E1E),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  children: _topFranchisees.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final franchisee = entry.value;
-                    return _buildFranchiseeItem(
-                      rank: index + 1,
-                      id: franchisee['id'],
-                      name: franchisee['name'],
-                      sales: franchisee['sales'],
-                      isLast: index == _topFranchisees.length - 1,
-                    );
-                  }).toList(),
-                ),
-              ),
-              const SizedBox(height: 24),
+              // // Top Franchisees List
+              // Container(
+              //   decoration: BoxDecoration(
+              //     color: const Color(0xFF1E1E1E),
+              //     borderRadius: BorderRadius.circular(12),
+              //   ),
+              //   child: Column(
+              //     children: _topFranchisees.asMap().entries.map((entry) {
+              //       final index = entry.key;
+              //       final franchisee = entry.value;
+              //       return _buildFranchiseeItem(
+              //         rank: index + 1,
+              //         id: franchisee['id'],
+              //         name: franchisee['name'],
+              //         sales: franchisee['sales'],
+              //         isLast: index == _topFranchisees.length - 1,
+              //       );
+              //     }).toList(),
+              //   ),
+              // ),
+              // const SizedBox(height: 24),
 
               // Recent Activities
               // const Text(
