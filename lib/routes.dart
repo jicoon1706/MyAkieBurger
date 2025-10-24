@@ -26,6 +26,7 @@ import 'package:myakieburger/views/manage_user/admin_profile.dart';
 import 'package:myakieburger/views/manage_user/franchisee_profile.dart';
 
 import 'package:myakieburger/views/manage_report/report_details_page.dart';
+import 'package:myakieburger/views/manage_sales/admin_analysis_page.dart';
 
 class Routes {
   static const String login = '/';
@@ -54,6 +55,7 @@ class Routes {
   static const String franchiseeProfile = '/franchisee_profile';
 
   static const String reportDetailsPage = '/report_details_page';
+  static const String adminAnalysisPage = '/admin_analysis_page';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -106,6 +108,8 @@ class Routes {
         return MaterialPageRoute(
           builder: (_) => ReportDetailsPage(report: args),
         );
+      case adminAnalysisPage:
+        return MaterialPageRoute(builder: (_) => const AdminAnalysisPage());
 
       default:
         return MaterialPageRoute(

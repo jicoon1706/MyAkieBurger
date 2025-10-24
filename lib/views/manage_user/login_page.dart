@@ -12,7 +12,7 @@ String hashPassword(String password) {
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
- 
+
   @override
   State<LoginPage> createState() => _LoginPageState();
 }
@@ -24,7 +24,7 @@ class _LoginPageState extends State<LoginPage> {
   String _selectedRole = 'Franchisee'; // Default role
   bool _obscurePassword = true; // 👁️ toggle password visibility
 
-  final List<String> _roles = ['Franchisee', 'Admin'];
+  final List<String> _roles = ['Franchisee', 'Admin', 'Factory Admin'];
 
   @override
   void dispose() {
@@ -34,78 +34,95 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _handleLogin() async {
-  final username = _usernameController.text.trim();
-  final password = _passwordController.text.trim();
+    final username = _usernameController.text.trim();
+    final password = _passwordController.text.trim();
 
-  if (username.isEmpty || password.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Please fill in all fields')),
-    );
-    return;
-  }
-
-  try {
-    final querySnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .where('username', isEqualTo: username)
-        .limit(1)
-        .get();
-
-    if (querySnapshot.docs.isEmpty) {
+    if (username.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('User not found'),
-          backgroundColor: Colors.red,
-        ),
+        const SnackBar(content: Text('Please fill in all fields')),
       );
       return;
     }
 
-    final doc = querySnapshot.docs.first;
-    final userData = doc.data();
-    final userId = doc.id; // 👈 Get the user ID
+    try {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('username', isEqualTo: username)
+          .limit(1)
+          .get();
 
-    final hashedInput = hashPassword(password);
-    final storedPassword = userData['password'];
+      if (querySnapshot.docs.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('User not found'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
 
-    if (hashedInput != storedPassword) {
+      final doc = querySnapshot.docs.first;
+      final userData = doc.data();
+      final userId = doc.id; // 👈 Get the user ID
+
+      final hashedInput = hashPassword(password);
+      final storedPassword = userData['password'];
+      final storedRole = (userData['role'] ?? '').toString().trim();
+
+      if (hashedInput != storedPassword) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Incorrect password'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // Check role
+      if (storedRole.toLowerCase() != _selectedRole.toLowerCase()) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Incorrect role selected. Please choose the right role.',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // 👇 Save user ID to SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('franchiseeId', userId);
+
+      String role = userData['role'] ?? 'Franchisee';
+      role = role[0].toUpperCase() + role.substring(1).toLowerCase();
+
+      if (role == 'Admin') {
+        Navigator.pushReplacementNamed(context, Routes.adminMainContainer);
+      } else if (role == 'Factory admin') {
+        Navigator.pushReplacementNamed(context, Routes.listOfIngredients);
+      } else {
+        Navigator.pushReplacementNamed(context, Routes.franchiseeMainContainer);
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Incorrect password'),
+        SnackBar(
+          content: Text('Login successful as $role!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Login failed: $e'),
           backgroundColor: Colors.red,
         ),
       );
-      return;
     }
-
-    // 👇 Save user ID to SharedPreferences
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('franchiseeId', userId);
-
-    String role = userData['role'] ?? 'Franchisee';
-    role = role[0].toUpperCase() + role.substring(1).toLowerCase();
-
-    if (role == 'Admin') {
-      Navigator.pushReplacementNamed(context, Routes.adminMainContainer);
-    } else {
-      Navigator.pushReplacementNamed(context, Routes.franchiseeMainContainer);
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Login successful as $role!'),
-        backgroundColor: Colors.green,
-      ),
-    );
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Login failed: $e'),
-        backgroundColor: Colors.red,
-      ),
-    );
   }
-}
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

@@ -6,13 +6,13 @@ import 'package:myakieburger/theme/app_colors.dart';
 class OrderDetailsPopup extends StatefulWidget {
   final Map<String, dynamic> order;
   final VoidCallback? onOrderCancelled;
-  final bool isAdminView; // 👈 New parameter to detect admin mode
+  final bool isFactoryAdminView; // 👈 For Factory Admin mode
 
   const OrderDetailsPopup({
     super.key,
     required this.order,
     this.onOrderCancelled,
-    this.isAdminView = false, // Default to franchisee view
+    this.isFactoryAdminView = false, // Default to franchisee view
   });
 
   @override
@@ -24,8 +24,8 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
   bool _isUpdating = false;
 
   // Dynamic color getters based on view mode
-  Color get _primaryColor => widget.isAdminView ? AppColors.admin : AppColors.primaryRed;
-  Color get _accentColor => widget.isAdminView ? AppColors.lightPurple : AppColors.accentRed;
+  Color get _primaryColor => widget.isFactoryAdminView ? AppColors.factoryBlue : AppColors.primaryRed;
+  Color get _accentColor => widget.isFactoryAdminView ? AppColors.lightBlueAccent : AppColors.accentRed;
 
   Future<void> _cancelOrder() async {
     // Show confirmation dialog
@@ -200,7 +200,7 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          widget.isAdminView ? 'Order Details (Admin)' : 'Order Details',
+                          widget.isFactoryAdminView ? 'Order Details (Factory Admin)' : 'Order Details',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 20,
@@ -342,7 +342,7 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
                     const SizedBox(height: 20),
 
                     // Action Buttons - Different for Admin vs Franchisee
-                    if (widget.isAdminView)
+                    if (widget.isFactoryAdminView)
                       _buildAdminActions(status, isPending)
                     else
                       _buildFranchiseeActions(isPending),

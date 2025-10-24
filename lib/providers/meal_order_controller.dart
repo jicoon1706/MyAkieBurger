@@ -498,4 +498,61 @@ extension MealOrderAnalysis on MealOrderController {
       return {'totalSales': 0.0, 'orders': []};
     }
   }
+
+  /// 🔹 Get total sales across ALL franchisees for a specific month
+  Future<Map<String, dynamic>> getAllSalesByMonth(int month, int year) async {
+    try {
+      final snapshot = await _firestore.collection('meal_orders_all').get();
+      final dateFormat = DateFormat('dd/MM/yyyy HH:mm:ss');
+      double totalSales = 0.0;
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final createdAtStr = data['created_at'] as String?;
+        if (createdAtStr == null) continue;
+        final createdAt = dateFormat.parse(createdAtStr);
+
+        if (createdAt.month == month && createdAt.year == year) {
+          final amount = data['total_amount'];
+          totalSales += (amount is int) ? amount.toDouble() : (amount ?? 0.0);
+        }
+      }
+
+      print("📊 Total sales for $month/$year: RM $totalSales");
+      return {'totalSales': totalSales};
+    } catch (e) {
+      print("❌ Error fetching all sales by month: $e");
+      return {'totalSales': 0.0};
+    }
+  }
+
+  /// 🔹 Get total sales across ALL franchisees for a specific year
+  Future<Map<String, dynamic>> getAllSalesByYear(int year) async {
+    try {
+      final snapshot = await _firestore.collection('meal_orders_all').get();
+      final dateFormat = DateFormat('dd/MM/yyyy HH:mm:ss');
+      double totalSales = 0.0;
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final createdAtStr = data['created_at'] as String?;
+        if (createdAtStr == null) continue;
+        final createdAt = dateFormat.parse(createdAtStr);
+
+        if (createdAt.year == year) {
+          final amount = data['total_amount'];
+          totalSales += (amount is int) ? amount.toDouble() : (amount ?? 0.0);
+        }
+      }
+
+      print("📊 Total sales for $year: RM $totalSales");
+      return {'totalSales': totalSales};
+    } catch (e) {
+      print("❌ Error fetching all sales by year: $e");
+      return {'totalSales': 0.0};
+    }
+  }
+
 }
+
+

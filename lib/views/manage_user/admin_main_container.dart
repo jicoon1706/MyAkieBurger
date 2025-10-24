@@ -18,7 +18,7 @@ class _AdminMainContainerState extends State<AdminMainContainer> {
   final List<Widget> _pages = [
     const AdminHomepage(),
     const FranchiseesList(), // Franchisees List
-    const ListOfIngredients(), // Ingredient Orders
+    // const ListOfIngredients(), // Ingredient Orders
     const FranchiseeReports(), // Reports
   ];
 
@@ -53,10 +53,10 @@ class _AdminMainContainerState extends State<AdminMainContainer> {
             icon: Icon(Icons.store, size: 28),
             label: 'Franchisees',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.description, size: 28),
-            label: 'Orders',
-          ),
+          // BottomNavigationBarItem(
+          //   icon: Icon(Icons.description, size: 28),
+          //   label: 'Orders',
+          // ),
           BottomNavigationBarItem(
             icon: Icon(Icons.assessment, size: 28),
             label: 'Reports',
