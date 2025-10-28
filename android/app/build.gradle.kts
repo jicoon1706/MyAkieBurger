@@ -23,7 +23,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.myakieburger"
+        applicationId = "com.myakieburger.sales"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion.toInt()
@@ -32,11 +32,21 @@ android {
         versionName = flutter.versionName
     }
 
+     // ✅ Correct Kotlin DSL syntax for signingConfigs
+    signingConfigs {
+        create("release") {
+            storeFile = file(findProperty("MYAPP_UPLOAD_STORE_FILE") as String)
+            storePassword = findProperty("MYAPP_UPLOAD_STORE_PASSWORD") as String
+            keyAlias = findProperty("MYAPP_UPLOAD_KEY_ALIAS") as String
+            keyPassword = findProperty("MYAPP_UPLOAD_KEY_PASSWORD") as String
+        }
+    }
+
     buildTypes {
-        release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+        getByName("release") {
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }
