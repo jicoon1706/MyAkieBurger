@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:myakieburger/theme/app_colors.dart';
 import 'package:intl/intl.dart';
+import 'package:myakieburger/widgets/custom_snackbar.dart';
 
 class ReportDetailsPage extends StatelessWidget {
   final Map<String, dynamic> report;
 
-  const ReportDetailsPage({
-    super.key,
-    required this.report,
-  });
+  const ReportDetailsPage({super.key, required this.report});
 
   @override
   Widget build(BuildContext context) {
@@ -33,12 +31,11 @@ class ReportDetailsPage extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.download, color: Colors.white),
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'Downloading report from ${report['report_date']}...',
-                  ),
-                ),
+              CustomSnackbar.show(
+                context,
+                message: 'Downloading report from ${report['report_date']}...',
+                backgroundColor: Colors.blueAccent,
+                icon: Icons.download,
               );
             },
           ),
@@ -70,7 +67,8 @@ class ReportDetailsPage extends StatelessWidget {
             const SizedBox(height: 16),
 
             // Comments Section
-            if (report['comments'] != null && report['comments'].toString().isNotEmpty)
+            if (report['comments'] != null &&
+                report['comments'].toString().isNotEmpty)
               _buildCommentsSection(),
           ],
         ),
@@ -113,13 +111,25 @@ class ReportDetailsPage extends StatelessWidget {
           const SizedBox(height: 12),
           const Divider(),
           const SizedBox(height: 8),
-          _buildInfoRow(Icons.person, 'Franchisee', report['franchisee_name'] ?? 'N/A'),
+          _buildInfoRow(
+            Icons.person,
+            'Franchisee',
+            report['franchisee_name'] ?? 'N/A',
+          ),
           const SizedBox(height: 8),
-          _buildInfoRow(Icons.account_circle, 'Username', report['username'] ?? 'N/A'),
+          _buildInfoRow(
+            Icons.account_circle,
+            'Username',
+            report['username'] ?? 'N/A',
+          ),
           const SizedBox(height: 8),
           _buildInfoRow(Icons.location_on, 'Region', report['region'] ?? 'N/A'),
           const SizedBox(height: 8),
-          _buildInfoRow(Icons.calendar_today, 'Report Date', report['report_date'] ?? 'N/A'),
+          _buildInfoRow(
+            Icons.calendar_today,
+            'Report Date',
+            report['report_date'] ?? 'N/A',
+          ),
         ],
       ),
     );
@@ -141,10 +151,7 @@ class ReportDetailsPage extends StatelessWidget {
         Expanded(
           child: Text(
             value,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
           ),
         ),
       ],
@@ -174,10 +181,7 @@ class ReportDetailsPage extends StatelessWidget {
         children: [
           const Text(
             'Sales Summary',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
           Row(
@@ -210,7 +214,12 @@ class ReportDetailsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildSummaryItem(String label, String value, IconData icon, Color color) {
+  Widget _buildSummaryItem(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Column(
       children: [
         Icon(icon, color: color, size: 28),
@@ -224,13 +233,7 @@ class ReportDetailsPage extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-          ),
-        ),
+        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
       ],
     );
   }
@@ -289,40 +292,28 @@ class ReportDetailsPage extends StatelessWidget {
                   flex: 2,
                   child: Text(
                     'Menu Item',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                 ),
                 Expanded(
                   child: Text(
                     'Units',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                 ),
                 Expanded(
                   child: Text(
                     'Price',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                 ),
                 Expanded(
                   child: Text(
                     'Total',
                     textAlign: TextAlign.right,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                 ),
               ],
@@ -434,40 +425,28 @@ class ReportDetailsPage extends StatelessWidget {
                   flex: 2,
                   child: Text(
                     'Ingredient',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                 ),
                 Expanded(
                   child: Text(
                     'Stock',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                 ),
                 Expanded(
                   child: Text(
                     'Used',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                 ),
                 Expanded(
                   child: Text(
                     'Balance',
                     textAlign: TextAlign.right,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                 ),
               ],
@@ -497,10 +476,7 @@ class ReportDetailsPage extends StatelessWidget {
                   children: [
                     Expanded(
                       flex: 2,
-                      child: Text(
-                        name,
-                        style: const TextStyle(fontSize: 12),
-                      ),
+                      child: Text(name, style: const TextStyle(fontSize: 12)),
                     ),
                     Expanded(
                       child: Text(
@@ -552,10 +528,7 @@ class ReportDetailsPage extends StatelessWidget {
           ),
           child: Text(
             report['comments'] ?? '',
-            style: const TextStyle(
-              fontSize: 14,
-              height: 1.5,
-            ),
+            style: const TextStyle(fontSize: 14, height: 1.5),
           ),
         ),
       ],

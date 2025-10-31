@@ -3,6 +3,7 @@ import 'package:myakieburger/theme/app_colors.dart';
 import 'package:myakieburger/domains/user_model.dart';
 import 'package:myakieburger/providers/user_controller.dart';
 import 'package:myakieburger/services/auth_service.dart';
+import 'package:myakieburger/widgets/custom_snackbar.dart';
 
 class EditProfilePage extends StatefulWidget {
   final UserModel user;
@@ -68,21 +69,21 @@ class _EditProfilePageState extends State<EditProfilePage> {
       await _userController.updateUser(updatedUser);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Profile updated successfully'),
-            backgroundColor: Colors.green,
-          ),
+        CustomSnackbar.show(
+          context,
+          message: 'Profile updated successfully',
+          backgroundColor: Colors.green,
+          icon: Icons.check,
         );
         Navigator.pop(context, updatedUser); // Return updated user
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to update profile: $e'),
-            backgroundColor: Colors.red,
-          ),
+        CustomSnackbar.show(
+          context,
+          message: 'Failed to update profile: $e',
+          backgroundColor: Colors.red,
+          icon: Icons.close,
         );
       }
     } finally {

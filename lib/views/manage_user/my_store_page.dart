@@ -3,6 +3,7 @@ import 'package:myakieburger/theme/app_colors.dart';
 import 'package:myakieburger/providers/user_controller.dart';
 import 'package:myakieburger/services/auth_service.dart';
 import 'package:myakieburger/domains/user_model.dart';
+import 'package:myakieburger/widgets/custom_snackbar.dart';
 
 class MyStorePage extends StatefulWidget {
   const MyStorePage({super.key});
@@ -60,11 +61,11 @@ class _MyStorePageState extends State<MyStorePage> {
     try {
       final userId = await getLoggedInUserId();
       if (userId == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No logged-in user found'),
-            backgroundColor: Colors.red,
-          ),
+        CustomSnackbar.show(
+          context,
+          message: 'No logged-in user found',
+          backgroundColor: Colors.red,
+          icon: Icons.close,
         );
         return;
       }
@@ -79,20 +80,20 @@ class _MyStorePageState extends State<MyStorePage> {
           _isLoading = false;
         });
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('User data not found'),
-            backgroundColor: Colors.red,
-          ),
+        CustomSnackbar.show(
+          context,
+          message: 'User data not found',
+          backgroundColor: Colors.red,
+          icon: Icons.close,
         );
       }
     } catch (e) {
       print('❌ Error loading store data: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to load store data: $e'),
-          backgroundColor: Colors.red,
-        ),
+      CustomSnackbar.show(
+        context,
+        message: 'Failed to load store data: $e',
+        backgroundColor: Colors.red,
+        icon: Icons.close,
       );
     }
   }
@@ -119,21 +120,22 @@ class _MyStorePageState extends State<MyStorePage> {
 
       setState(() => _isLoading = false);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Store info updated successfully!'),
-          backgroundColor: Colors.green,
-        ),
+      CustomSnackbar.show(
+        context,
+        message: 'Store info updated successfully!',
+        backgroundColor: Colors.green,
+        icon: Icons.check,
       );
 
       Navigator.pop(context, updatedUser);
     } catch (e) {
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to update store info: $e'),
-          backgroundColor: Colors.red,
-        ),
+
+      CustomSnackbar.show(
+        context,
+        message: 'Failed to update store info: $e',
+        backgroundColor: Colors.red,
+        icon: Icons.close,
       );
     }
   }

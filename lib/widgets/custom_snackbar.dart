@@ -17,7 +17,7 @@ class CustomSnackbar {
             Expanded(
               child: Text(
                 message,
-                style: const TextStyle(fontSize: 14),
+                style: const TextStyle(fontSize: 14, color: Colors.white),
               ),
             ),
           ],
@@ -32,4 +32,3 @@ class CustomSnackbar {
     );
   }
 }
-

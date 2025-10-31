@@ -5,6 +5,7 @@ import 'package:myakieburger/routes.dart';
 import 'package:myakieburger/providers/ingredients_order_controller.dart';
 import 'package:myakieburger/domains/ingredients_order_model.dart';
 import 'package:myakieburger/services/auth_service.dart'; // for getLoggedInUserId()
+import 'package:myakieburger/widgets/custom_snackbar.dart';
 
 class IngredientOrderPage extends StatefulWidget {
   const IngredientOrderPage({super.key});
@@ -369,10 +370,11 @@ class _IngredientOrderPageState extends State<IngredientOrderPage> {
                 onPressed: () async {
                   final franchiseeId = await getLoggedInUserId();
                   if (franchiseeId == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Error: Franchisee not found'),
-                      ),
+                    CustomSnackbar.show(
+                      context,
+                      message: 'Error: Franchisee not found',
+                      backgroundColor: Colors.red,
+                      icon: Icons.error_outline,
                     );
                     return;
                   }
@@ -408,16 +410,25 @@ class _IngredientOrderPageState extends State<IngredientOrderPage> {
                         ? 'No notes provided'
                         : _notesController.text.trim(),
                   );
+                  try {
+                    await _orderController.saveIngredientsOrder(newOrder);
 
-                  await _orderController.saveIngredientsOrder(newOrder);
+                    CustomSnackbar.show(
+                      context,
+                      message: 'Order submitted successfully!',
+                      backgroundColor: Colors.green,
+                      icon: Icons.check_circle_outline,
+                    );
 
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Order submitted successfully!'),
-                    ),
-                  );
-
-                  _notesController.clear();
+                    _notesController.clear();
+                  } catch (e) {
+                    CustomSnackbar.show(
+                      context,
+                      message: 'Failed to submit order: $e',
+                      backgroundColor: Colors.red,
+                      icon: Icons.error_outline,
+                    );
+                  }
                 },
               ),
 

@@ -5,6 +5,7 @@ import 'package:myakieburger/providers/user_controller.dart';
 import 'package:myakieburger/domains/user_model.dart';
 import 'package:myakieburger/providers/meal_order_controller.dart';
 import 'package:myakieburger/domains/meal_order_model.dart';
+import 'package:myakieburger/widgets/custom_snackbar.dart';
 
 class AddMealOrder extends StatefulWidget {
   const AddMealOrder({super.key});
@@ -200,105 +201,103 @@ class _AddMealOrderState extends State<AddMealOrder> {
 
   // In your _completeOrder method in AddMealOrder, make this change:
 
-Future<void> _completeOrder() async {
-  if (franchiseeId == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Error: User not logged in. Please restart the app.'),
+  Future<void> _completeOrder() async {
+    if (franchiseeId == null) {
+      CustomSnackbar.show(
+        context,
+        message: 'Error: User not logged in. Please restart the app.',
         backgroundColor: Colors.red,
-      ),
-    );
-    return;
-  }
+        icon: Icons.download,
+      );
+      return;
+    }
 
-  if (orderItems.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Please add at least one item to your order'),
+    if (orderItems.isEmpty) {
+      CustomSnackbar.show(
+        context,
+        message: 'Please add at least one item to your order',
         backgroundColor: Colors.orange,
-      ),
-    );
-    return;
-  }
+        icon: Icons.download,
+      );
+      return;
+    }
 
-  try {
-    // Show loading indicator
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) =>
-          const Center(child: CircularProgressIndicator(color: Colors.white)),
-    );
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) =>
+            const Center(child: CircularProgressIndicator(color: Colors.white)),
+      );
 
-    final controller = MealOrderController();
+      final controller = MealOrderController();
 
-    final meals = orderItems.map((item) {
-      return {
-        'category': _getCategoryForItem(item.name),
-        'menu_name': item.name,
-        'base_price': item.basePrice.toDouble(),
-        'add_ons': item.addOns.map((a) {
-          final addOnData = addOns.firstWhere(
-            (x) => x.name == a,
-            orElse: () => AddOn(a, a, 0.0),
-          );
+      final meals = orderItems.map((item) {
+        return {
+          'category': _getCategoryForItem(item.name),
+          'menu_name': item.name,
+          'base_price': item.basePrice.toDouble(),
+          'add_ons': item.addOns.map((a) {
+            final addOnData = addOns.firstWhere(
+              (x) => x.name == a,
+              orElse: () => AddOn(a, a, 0.0),
+            );
 
-          final unitPrice = addOnData.price.toDouble();
-          return {
-            'name': a,
-            'unit_price': unitPrice,
-            'quantity': 1,
-            'subtotal': (unitPrice * 1).toDouble(),
-          };
-        }).toList(),
-        'quantity': item.quantity,
-        'subtotal': calculateItemPrice(item).toDouble(),
-      };
-    }).toList();
+            final unitPrice = addOnData.price.toDouble();
+            return {
+              'name': a,
+              'unit_price': unitPrice,
+              'quantity': 1,
+              'subtotal': (unitPrice * 1).toDouble(),
+            };
+          }).toList(),
+          'quantity': item.quantity,
+          'subtotal': calculateItemPrice(item).toDouble(),
+        };
+      }).toList();
 
-    final newOrder = MealOrderModel(
-      franchiseeName: franchiseeName ?? 'Unknown Stall',
-      totalAmount: calculateTotalPrice(),
-      meals: meals,
-      notes: notesController.text.trim(),
-      createdAt: DateTime.now(),
-    );
+      final newOrder = MealOrderModel(
+        franchiseeName: franchiseeName ?? 'Unknown Stall',
+        totalAmount: calculateTotalPrice(),
+        meals: meals,
+        notes: notesController.text.trim(),
+        createdAt: DateTime.now(),
+      );
 
-    await controller.saveMealOrder(franchiseeId!, newOrder);
+      await controller.saveMealOrder(franchiseeId!, newOrder);
 
-    // Close loading dialog
-    if (mounted) Navigator.pop(context);
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
 
-    // Show success message
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Order completed successfully!'),
+      // Show success message
+      if (mounted) {
+        CustomSnackbar.show(
+          context,
+          message: 'Order completed successfully!.',
           backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
+          icon: Icons.check,
+        );
+      }
 
-    // Close the order sheet and return true to indicate success
-    if (mounted) Navigator.pop(context, true);
-  } catch (e) {
-    // Close loading dialog if still showing
-    if (mounted) Navigator.pop(context);
+      // Close the order sheet and return true to indicate success
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      // Close loading dialog if still showing
+      if (mounted) Navigator.pop(context);
 
-    // Show error message
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Error: $e'),
+      // Show error message
+      if (mounted) {
+        CustomSnackbar.show(
+          context,
+          message: 'Error: $e',
           backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
-        ),
-      );
+          icon: Icons.close,
+        );
+      }
+      print('❌ Error completing order: $e');
     }
-    print('❌ Error completing order: $e');
   }
-}
 
   @override
   Widget build(BuildContext context) {

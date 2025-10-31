@@ -5,6 +5,7 @@ import 'package:myakieburger/providers/ingredients_order_controller.dart';
 import 'package:myakieburger/services/auth_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:myakieburger/views/manage_ingredients_orders/order_details_popup.dart';
+import 'package:myakieburger/widgets/custom_snackbar.dart';
 
 class OrderHistory extends StatefulWidget {
   const OrderHistory({super.key});
@@ -31,8 +32,11 @@ class _OrderHistoryState extends State<OrderHistory> {
     print('🔍 Logged in franchiseeId: $franchiseeId'); // Add this
 
     if (franchiseeId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error: Franchisee not found')),
+      CustomSnackbar.show(
+        context,
+        message: 'Error: Franchisee not found',
+        backgroundColor: Colors.red,
+        icon: Icons.error,
       );
       setState(() => _isLoading = false);
       return;

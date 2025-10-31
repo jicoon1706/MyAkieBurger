@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:myakieburger/theme/app_colors.dart';
+import 'package:myakieburger/widgets/custom_snackbar.dart';
 
 class OrderDetailsPopup extends StatefulWidget {
   final Map<String, dynamic> order;
@@ -24,8 +25,11 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
   bool _isUpdating = false;
 
   // Dynamic color getters based on view mode
-  Color get _primaryColor => widget.isFactoryAdminView ? AppColors.factoryBlue : AppColors.primaryRed;
-  Color get _accentColor => widget.isFactoryAdminView ? AppColors.lightBlueAccent : AppColors.accentRed;
+  Color get _primaryColor =>
+      widget.isFactoryAdminView ? AppColors.factoryBlue : AppColors.primaryRed;
+  Color get _accentColor => widget.isFactoryAdminView
+      ? AppColors.lightBlueAccent
+      : AppColors.accentRed;
 
   Future<void> _cancelOrder() async {
     // Show confirmation dialog
@@ -74,28 +78,23 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
           });
 
       if (mounted) {
-        // Close popup
         Navigator.pop(context);
-
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Order cancelled successfully'),
-            backgroundColor: Colors.green,
-          ),
+        CustomSnackbar.show(
+          context,
+          message: 'Order cancelled successfully',
+          backgroundColor: Colors.green,
+          icon: Icons.check_circle_outline,
         );
-
-        // Trigger refresh callback
         widget.onOrderCancelled?.call();
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isCancelling = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to cancel order: $e'),
-            backgroundColor: Colors.red,
-          ),
+        CustomSnackbar.show(
+          context,
+          message: 'Failed to cancel order: $e',
+          backgroundColor: Colors.red,
+          icon: Icons.error_outline,
         );
       }
     }
@@ -120,22 +119,22 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
 
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Order marked as $newStatus'),
-            backgroundColor: Colors.green,
-          ),
+        CustomSnackbar.show(
+          context,
+          message: 'Order marked as $newStatus',
+          backgroundColor: Colors.green,
+          icon: Icons.check_circle_outline,
         );
         widget.onOrderCancelled?.call();
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isUpdating = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to update order: $e'),
-            backgroundColor: Colors.red,
-          ),
+        CustomSnackbar.show(
+          context,
+          message: 'Failed to update order: $e',
+          backgroundColor: Colors.red,
+          icon: Icons.error_outline,
         );
       }
     }
@@ -200,7 +199,9 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          widget.isFactoryAdminView ? 'Order Details (Factory Admin)' : 'Order Details',
+                          widget.isFactoryAdminView
+                              ? 'Order Details (Factory Admin)'
+                              : 'Order Details',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 20,
@@ -365,7 +366,9 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
             children: [
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: _isUpdating ? null : () => _updateOrderStatus('Completed'),
+                  onPressed: _isUpdating
+                      ? null
+                      : () => _updateOrderStatus('Completed'),
                   icon: _isUpdating
                       ? const SizedBox(
                           width: 16,
@@ -496,8 +499,11 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
             child: OutlinedButton.icon(
               onPressed: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Downloading invoice...')),
+                CustomSnackbar.show(
+                  context,
+                  message: 'Downloading invoice...',
+                  backgroundColor: Colors.blueAccent,
+                  icon: Icons.download,
                 );
               },
               icon: const Icon(Icons.download),

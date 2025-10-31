@@ -4,6 +4,7 @@ import 'package:myakieburger/theme/app_colors.dart';
 import 'package:myakieburger/widgets/lists.dart';
 import 'package:myakieburger/providers/report_controller.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:myakieburger/widgets/custom_snackbar.dart';
 
 class FranchiseeReports extends StatefulWidget {
   const FranchiseeReports({super.key});
@@ -37,12 +38,11 @@ class _FranchiseeReportsState extends State<FranchiseeReports> {
   }
 
   void _handleDownload(String reportId) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Downloading $reportId...'),
-        duration: const Duration(seconds: 2),
-        backgroundColor: AppColors.accentRed,
-      ),
+    CustomSnackbar.show(
+      context,
+      message: 'Downloading $reportId...',
+      backgroundColor: AppColors.lightPurple,
+      icon: Icons.download,
     );
   }
 

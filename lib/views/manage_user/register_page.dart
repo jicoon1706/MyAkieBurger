@@ -4,6 +4,7 @@ import 'package:myakieburger/domains/user_model.dart';
 import 'package:intl/intl.dart';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
+import 'package:myakieburger/widgets/custom_snackbar.dart';
 
 String hashPassword(String password) {
   return sha256.convert(utf8.encode(password)).toString();
@@ -93,19 +94,20 @@ class _RegisterPageState extends State<RegisterPage> {
       try {
         await userController.registerFranchisee(user);
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Franchisee account created successfully!'),
-            backgroundColor: Colors.green,
-          ),
+        CustomSnackbar.show(
+          context,
+          message: 'Franchisee account created successfully!',
+          backgroundColor: Colors.green,
+          icon: Icons.check,
         );
+
         Navigator.pop(context);
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to register: $e'),
-            backgroundColor: Colors.red,
-          ),
+        CustomSnackbar.show(
+          context,
+          message: 'Failed to register: $e',
+          backgroundColor: Colors.red,
+          icon: Icons.close,
         );
       }
     }

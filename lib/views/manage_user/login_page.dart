@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../widgets/custom_snackbar.dart';
 
 String hashPassword(String password) {
   return sha256.convert(utf8.encode(password)).toString();
@@ -38,8 +39,11 @@ class _LoginPageState extends State<LoginPage> {
     final password = _passwordController.text.trim();
 
     if (username.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in all fields')),
+      CustomSnackbar.show(
+        context,
+        message: 'Please fill in all fields',
+        backgroundColor: Colors.orange,
+        icon: Icons.warning_amber_rounded,
       );
       return;
     }
@@ -52,53 +56,51 @@ class _LoginPageState extends State<LoginPage> {
           .get();
 
       if (querySnapshot.docs.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('User not found'),
-            backgroundColor: Colors.red,
-          ),
+        CustomSnackbar.show(
+          context,
+          message: 'User not found',
+          backgroundColor: Colors.red,
+          icon: Icons.error_outline,
         );
         return;
       }
 
       final doc = querySnapshot.docs.first;
       final userData = doc.data();
-      final userId = doc.id; // 👈 Get the user ID
+      final userId = doc.id;
 
       final hashedInput = hashPassword(password);
       final storedPassword = userData['password'];
       final storedRole = (userData['role'] ?? '').toString().trim();
 
       if (hashedInput != storedPassword) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Incorrect password'),
-            backgroundColor: Colors.red,
-          ),
+        CustomSnackbar.show(
+          context,
+          message: 'Incorrect password',
+          backgroundColor: Colors.red,
+          icon: Icons.error_outline,
         );
         return;
       }
 
-      // Check role
       if (storedRole.toLowerCase() != _selectedRole.toLowerCase()) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Incorrect role selected. Please choose the right role.',
-            ),
-            backgroundColor: Colors.red,
-          ),
+        CustomSnackbar.show(
+          context,
+          message: 'Incorrect role selected. Please choose the right role.',
+          backgroundColor: Colors.redAccent,
+          icon: Icons.warning_amber_rounded,
         );
         return;
       }
 
-      // 👇 Save user ID to SharedPreferences
+      // Save user ID
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('franchiseeId', userId);
 
       String role = userData['role'] ?? 'Franchisee';
       role = role[0].toUpperCase() + role.substring(1).toLowerCase();
 
+      // Navigate by role
       if (role == 'Admin') {
         Navigator.pushReplacementNamed(context, Routes.adminMainContainer);
       } else if (role == 'Factory admin') {
@@ -107,18 +109,18 @@ class _LoginPageState extends State<LoginPage> {
         Navigator.pushReplacementNamed(context, Routes.franchiseeMainContainer);
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Login successful as $role!'),
-          backgroundColor: Colors.green,
-        ),
+      CustomSnackbar.show(
+        context,
+        message: 'Login successful as $role!',
+        backgroundColor: Colors.green,
+        icon: Icons.check_circle_outline,
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Login failed: $e'),
-          backgroundColor: Colors.red,
-        ),
+      CustomSnackbar.show(
+        context,
+        message: 'Login failed: $e',
+        backgroundColor: Colors.red,
+        icon: Icons.error_outline,
       );
     }
   }

@@ -5,6 +5,7 @@ import 'package:myakieburger/widgets/lists.dart';
 import 'package:myakieburger/routes.dart';
 import 'package:myakieburger/services/auth_service.dart';
 import 'package:myakieburger/views/manage_report/report_details_page.dart';
+import 'package:myakieburger/widgets/custom_snackbar.dart';
 
 class ReportPage extends StatefulWidget {
   const ReportPage({super.key});
@@ -150,12 +151,11 @@ class _ReportPageState extends State<ReportPage> {
                           name: name,
                           date: date,
                           onDownload: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Downloading report from $date...',
-                                ),
-                              ),
+                            CustomSnackbar.show(
+                              context,
+                              message: 'Downloading report from $date...',
+                              backgroundColor: Colors.blueAccent,
+                              icon: Icons.download,
                             );
                           },
                         ),

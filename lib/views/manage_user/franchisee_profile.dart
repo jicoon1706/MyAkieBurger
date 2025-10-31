@@ -6,6 +6,7 @@ import 'package:myakieburger/services/auth_service.dart';
 import 'package:myakieburger/providers/user_controller.dart';
 import 'package:myakieburger/views/manage_user/edit_profile.dart';
 import 'package:myakieburger/views/manage_user/my_store_page.dart';
+import 'package:myakieburger/widgets/custom_snackbar.dart';
 
 class FranchiseeProfile extends StatefulWidget {
   const FranchiseeProfile({super.key});
@@ -33,11 +34,11 @@ class _FranchiseeProfileState extends State<FranchiseeProfile> {
       final userId = await getLoggedInUserId();
 
       if (userId == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No logged-in user found'),
-            backgroundColor: Colors.red,
-          ),
+        CustomSnackbar.show(
+          context,
+          message: 'No logged-in user found',
+          backgroundColor: Colors.red,
+          icon: Icons.close,
         );
         return;
       }
@@ -45,11 +46,11 @@ class _FranchiseeProfileState extends State<FranchiseeProfile> {
       final user = await _userController.getUserById(userId);
 
       if (user == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('User data not found'),
-            backgroundColor: Colors.red,
-          ),
+        CustomSnackbar.show(
+          context,
+          message: 'User data not found',
+          backgroundColor: Colors.red,
+          icon: Icons.close,
         );
         return;
       }
@@ -60,11 +61,11 @@ class _FranchiseeProfileState extends State<FranchiseeProfile> {
       });
     } catch (e) {
       print('❌ Error loading user data: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to load user data: $e'),
-          backgroundColor: Colors.red,
-        ),
+      CustomSnackbar.show(
+        context,
+        message: 'Failed to load user data: $e',
+        backgroundColor: Colors.red,
+        icon: Icons.close,
       );
     }
   }
@@ -74,11 +75,11 @@ class _FranchiseeProfileState extends State<FranchiseeProfile> {
       final userId = await getLoggedInUserId();
 
       if (userId == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No logged-in user found'),
-            backgroundColor: Colors.red,
-          ),
+        CustomSnackbar.show(
+          context,
+          message: 'No logged-in user found',
+          backgroundColor: Colors.red,
+          icon: Icons.close,
         );
         return;
       }
@@ -86,11 +87,11 @@ class _FranchiseeProfileState extends State<FranchiseeProfile> {
       final user = await _userController.getUserById(userId);
 
       if (user == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('User data not found'),
-            backgroundColor: Colors.red,
-          ),
+        CustomSnackbar.show(
+          context,
+          message: 'User data not found',
+          backgroundColor: Colors.red,
+          icon: Icons.close,
         );
         return;
       }
@@ -107,28 +108,28 @@ class _FranchiseeProfileState extends State<FranchiseeProfile> {
       }
     } catch (e) {
       print('❌ Error navigating to edit profile: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to open Edit Profile: $e'),
-          backgroundColor: Colors.red,
-        ),
+      CustomSnackbar.show(
+        context,
+        message: 'Failed to open Edit Profile: $e',
+        backgroundColor: Colors.red,
+        icon: Icons.close,
       );
     }
   }
 
   void _handleMyStores() async {
-  final updatedUser = await Navigator.push(
-    context,
-    MaterialPageRoute(builder: (_) => const MyStorePage()),
-  );
+    final updatedUser = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const MyStorePage()),
+    );
 
-  // Refresh profile data if store updated
-  if (updatedUser != null && mounted) {
-    setState(() {
-      _user = updatedUser;
-    });
+    // Refresh profile data if store updated
+    if (updatedUser != null && mounted) {
+      setState(() {
+        _user = updatedUser;
+      });
+    }
   }
-}
 
   void _handleSupport() {}
   void _handlePINCode() {}

@@ -5,6 +5,7 @@ import 'package:myakieburger/providers/ingredients_order_controller.dart';
 import 'package:intl/intl.dart';
 import 'package:myakieburger/routes.dart';
 import 'package:myakieburger/views/manage_ingredients_orders/order_details_popup.dart';
+import 'package:myakieburger/widgets/custom_snackbar.dart';
 
 class ListOfIngredients extends StatefulWidget {
   const ListOfIngredients({super.key});
@@ -50,12 +51,11 @@ class _ListOfIngredientsState extends State<ListOfIngredients> {
   }
 
   void _handleDownload(String orderNumber) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Downloading $orderNumber...'),
-        duration: const Duration(seconds: 2),
-        backgroundColor: AppColors.factoryBlue,
-      ),
+    CustomSnackbar.show(
+      context,
+      message: 'Downloading invoice $orderNumber......',
+      backgroundColor: Colors.blueAccent,
+      icon: Icons.download,
     );
   }
 

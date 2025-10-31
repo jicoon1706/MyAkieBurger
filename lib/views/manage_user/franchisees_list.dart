@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:myakieburger/theme/app_colors.dart';
 import 'package:myakieburger/widgets/lists.dart';
 import 'package:myakieburger/views/manage_user/franchisee_details_page.dart';
+import 'package:myakieburger/widgets/custom_snackbar.dart';
 
 class FranchiseesList extends StatefulWidget {
   const FranchiseesList({super.key});
@@ -160,12 +161,12 @@ class _FranchiseesListState extends State<FranchiseesList> {
                         imagePath: franchisee['image'],
                         useProfileIcon: true,
                         onDownload: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
+                          CustomSnackbar.show(
+                            context,
+                            message:
                                 'Downloading ${franchisee['username']} data...',
-                              ),
-                            ),
+                            backgroundColor: Colors.blue,
+                            icon: Icons.download,
                           );
                         },
                       ),
