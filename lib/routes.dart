@@ -18,6 +18,7 @@ import 'package:myakieburger/views/manage_sales/analysis_page.dart';
 
 import 'package:myakieburger/views/manage_sales/admin_homepage.dart';
 import 'package:myakieburger/views/manage_user/admin_main_container.dart';
+import 'package:myakieburger/views/manage_user/fadmin_main_container.dart';
 
 import 'package:myakieburger/views/manage_sales/admin_sales_leaderboard.dart';
 import 'package:myakieburger/views/manage_sales/franchisees_sales_leaderboard.dart';
@@ -33,6 +34,7 @@ class Routes {
   static const String register = '/register';
   static const String franchiseeHomepage = '/franchisee_homepage';
   static const franchiseeMainContainer = '/franchiseeMainContainer';
+  static const String fad = '/FAdminMainContainer';
   static const String addMealOrder = '/add_meal_order';
   static const String ingredientOrderPage = '/ingredient_order_page';
   static const String listOfIngredients = '/list_of_ingredients';
@@ -68,6 +70,10 @@ class Routes {
       case franchiseeMainContainer:
         return MaterialPageRoute(
           builder: (_) => const FranchiseeMainContainer(),
+        );
+      case fad:
+        return MaterialPageRoute(
+          builder: (_) => const FAdminMainContainer(),
         );
       case adminMainContainer:
         return MaterialPageRoute(builder: (_) => const AdminMainContainer());

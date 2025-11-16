@@ -104,7 +104,7 @@ class _LoginPageState extends State<LoginPage> {
       if (role == 'Admin') {
         Navigator.pushReplacementNamed(context, Routes.adminMainContainer);
       } else if (role == 'Factory admin') {
-        Navigator.pushReplacementNamed(context, Routes.listOfIngredients);
+        Navigator.pushReplacementNamed(context, Routes.fad);
       } else {
         Navigator.pushReplacementNamed(context, Routes.franchiseeMainContainer);
       }
