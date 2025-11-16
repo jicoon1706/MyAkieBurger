@@ -42,6 +42,27 @@ for (var doc in snapshot.docs) {
     });
   }
 
+  Future<void> updateIngredientDetails(
+    String ingredientId,
+    int available,
+    int maxOrder,
+    double unitPrice,
+  ) async {
+    final ref = _db.collection('ingredients').doc(ingredientId);
+
+    // Prepare update data
+    Map<String, dynamic> updateData = {
+      'available': available,
+      'max_order': maxOrder,
+      'unit_price': unitPrice,
+      'updated_at': FieldValue.serverTimestamp(),
+    };
+
+    // Use update to only modify the specified fields
+    await ref.update(updateData);
+    print("Updated ingredient $ingredientId: $updateData");
+  }
+
   /// Add ingredient to Firestore (admin usage)
   Future<void> addIngredient(IngredientInventory ingredient) async {
     await _db

@@ -35,7 +35,7 @@ class _FAdminMainContainerState extends State<FAdminMainContainer> {
         currentIndex: _currentIndex,
         onTap: _onTabTapped,
         type: BottomNavigationBarType.fixed,
-        backgroundColor: const Color(0xFF33105D),
+        backgroundColor: AppColors.lightBlueAccent,
         selectedItemColor: Colors.white,
         unselectedItemColor: Colors.white70,
         showSelectedLabels: true,

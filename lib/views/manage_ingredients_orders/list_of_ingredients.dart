@@ -72,9 +72,9 @@ class _ListOfIngredientsState extends State<ListOfIngredients> {
         .toList();
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.factoryBlue,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: AppColors.factoryBlue,
         elevation: 0,
         leading: Padding(
           padding: const EdgeInsets.only(left: 16.0, right: 4.0),
