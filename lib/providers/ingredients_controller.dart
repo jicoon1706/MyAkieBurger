@@ -94,6 +94,69 @@ class IngredientsController {
     'Telur': 'Telur',
   };
 
+  Future<void> addReceivedIngredients(
+    Transaction transaction,
+    String franchiseeId,
+    List<dynamic> orderedIngredients,
+  ) async {
+    final formattedDate =
+        DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now());
+    
+    // Process each ingredient in the completed order
+    for (var item in orderedIngredients) {
+      final ingredientName = item['ingredient_name'] as String;
+      final quantity = item['quantity'] as int;
+      final price = (item['unit_price'] as num).toDouble();
+      
+      // Find the existing ingredient document by name
+      final ingredientQuery = await _firestore
+          .collection('users')
+          .doc(franchiseeId)
+          .collection('ingredients')
+          .where('name', isEqualTo: ingredientName)
+          .limit(1)
+          .get();
+
+      if (ingredientQuery.docs.isNotEmpty) {
+        final docRef = ingredientQuery.docs.first.reference;
+        final data = ingredientQuery.docs.first.data();
+        
+        // Calculate new values
+        final newReceived = (data['received'] ?? 0) + quantity;
+        final newBalance = (data['balance'] ?? 0) + quantity;
+
+        // Add update operation to the transaction
+        transaction.update(docRef, {
+          'received': newReceived,
+          'balance': newBalance,
+          'price': price, // Update price to the latest received price
+          'updated_at': formattedDate,
+        });
+
+        print('✅ Franchisee $franchiseeId received $quantity of $ingredientName');
+      } else {
+        // If the ingredient doesn't exist, create it (assuming it's a new ingredient)
+        final newDocRef = _firestore
+            .collection('users')
+            .doc(franchiseeId)
+            .collection('ingredients')
+            .doc(); // Auto ID
+
+        transaction.set(newDocRef, {
+          'name': ingredientName,
+          'price': price,
+          'received': quantity,
+          'used': 0,
+          'damaged': 0,
+          'eat': 0,
+          'balance': quantity,
+          'updated_at': formattedDate,
+        });
+        print('➕ Franchisee $franchiseeId created new ingredient $ingredientName');
+      }
+    }
+  }
+
   /// 🔹 Update or create ingredient record
   Future<void> updateIngredient(
       String franchiseeId, IngredientModel ingredient) async {

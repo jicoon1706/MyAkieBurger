@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:myakieburger/theme/app_colors.dart';
 import 'package:myakieburger/widgets/custom_snackbar.dart';
+import 'package:myakieburger/providers/ingredients_order_controller.dart';
 
 class OrderDetailsPopup extends StatefulWidget {
   final Map<String, dynamic> order;
@@ -32,7 +33,7 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
       : AppColors.accentRed;
 
   Future<void> _cancelOrder() async {
-    // Show confirmation dialog
+    // Show confirmation dialog (unchanged)
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -62,26 +63,22 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
     setState(() => _isCancelling = true);
 
     try {
+      // 1. Check for Order ID
       final orderId = widget.order['supplyOrderId'];
       if (orderId == null) {
         throw Exception('Order ID not found');
       }
 
-      // Update order status to Cancelled
-      await FirebaseFirestore.instance
-          .collection('supply_orders_all')
-          .doc(orderId)
-          .update({
-            'status': 'Cancelled',
-            'cancelled_at': FieldValue.serverTimestamp(),
-            'updated_at': FieldValue.serverTimestamp(),
-          });
+      // 📝 FIX: Both Franchisee and Factory Admin MUST call the controller method
+      // that handles status update AND inventory restock atomically.
+      await IngredientsOrderController().cancelOrderAndRestock(widget.order);
 
       if (mounted) {
         Navigator.pop(context);
         CustomSnackbar.show(
           context,
-          message: 'Order cancelled successfully',
+          // The message should reflect that stock might have been returned
+          message: 'Order cancelled successfully. Factory inventory restored.',
           backgroundColor: Colors.green,
           icon: Icons.check_circle_outline,
         );
@@ -97,6 +94,40 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
           icon: Icons.error_outline,
         );
       }
+    }
+  }
+
+  Future<void> _handleMarkComplete() async {
+    setState(() => _isUpdating = true);
+
+    try {
+      // Call the central controller method
+      await IngredientsOrderController().markOrderAsCompleted(widget.order);
+
+      if (!mounted) return;
+
+      Navigator.pop(context);
+
+      CustomSnackbar.show(
+        context,
+        message:
+            'Order marked as Completed, Franchisee stock added, & Factory inventory reduced!', // Updated message
+        backgroundColor: Colors.green,
+        icon: Icons.check_circle_outline,
+      );
+
+      widget.onOrderCancelled
+          ?.call(); // Refresh parent page (ListOfIngredients)
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isUpdating = false);
+
+      CustomSnackbar.show(
+        context,
+        message: 'Error completing order: $e',
+        backgroundColor: Colors.red,
+        icon: Icons.error_outline,
+      );
     }
   }
 
@@ -366,9 +397,8 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
             children: [
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: _isUpdating
-                      ? null
-                      : () => _updateOrderStatus('Completed'),
+                  onPressed: _isUpdating ? null : () => _handleMarkComplete(),
+
                   icon: _isUpdating
                       ? const SizedBox(
                           width: 16,

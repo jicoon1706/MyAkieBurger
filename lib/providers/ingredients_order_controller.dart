@@ -1,9 +1,91 @@
 // lib/providers/ingredients_order_controller.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:myakieburger/domains/ingredients_order_model.dart';
+import 'package:myakieburger/providers/ingredients_controller.dart';
+import 'package:myakieburger/providers/ingredients_inventory_controller.dart';
  
 class IngredientsOrderController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final IngredientsInventoryController _inventoryController = IngredientsInventoryController();
+  final IngredientsController _ingredientsController = IngredientsController();
+
+  /// 🌟 New: Mark order as completed and update all relevant stock/inventory
+  Future<void> markOrderAsCompleted(Map<String, dynamic> order) async {
+    final orderId = order['supplyOrderId'];
+    final franchiseeId = order['franchiseeId'];
+    final ingredients = order['ingredients'] as List<dynamic>? ?? [];
+
+    if (orderId == null || franchiseeId == null) {
+      throw Exception('Missing Order ID or Franchisee ID for completion.');
+    }
+
+    // Use a Firestore Transaction to ensure atomic updates across collections
+    await _firestore.runTransaction((transaction) async {
+      final orderRef = _firestore.collection('supply_orders_all').doc(orderId);
+      final orderSnapshot = await transaction.get(orderRef);
+
+      if (!orderSnapshot.exists) {
+        throw Exception("Order document does not exist.");
+      }
+
+      // 1. Update order status to Completed
+      transaction.update(orderRef, {
+        'status': 'Completed',
+        'completed_at': FieldValue.serverTimestamp(),
+        'updated_at': FieldValue.serverTimestamp(),
+      });
+
+      // 2. Update franchisee's balanced ingredients (Increase 'received' and 'balance')
+      await _ingredientsController.addReceivedIngredients(
+        transaction, // Pass the transaction object
+        franchiseeId,
+        ingredients,
+      );
+
+      // 3. Update factory's global inventory (Decrease 'available' stock)
+      await _inventoryController.reduceStockBatch(
+        transaction, // Pass the transaction object
+        ingredients,
+      );
+    });
+    
+    print("✅ Order $orderId completed and all stocks updated successfully.");
+  }
+
+  Future<void> cancelOrderAndRestock(Map<String, dynamic> order) async {
+    final orderId = order['supplyOrderId'];
+    final ingredients = order['ingredients'] as List<dynamic>? ?? [];
+    
+    if (orderId == null) {
+      throw Exception('Missing Order ID for cancellation.');
+    }
+
+    // Use a Firestore Transaction to ensure atomic updates
+    await _firestore.runTransaction((transaction) async {
+      final orderRef = _firestore.collection('supply_orders_all').doc(orderId);
+      final orderSnapshot = await transaction.get(orderRef);
+
+      if (!orderSnapshot.exists) {
+        throw Exception("Order document does not exist.");
+      }
+
+      // 1. Update order status to Cancelled
+      transaction.update(orderRef, {
+        'status': 'Cancelled',
+        'cancelled_at': FieldValue.serverTimestamp(),
+        'updated_at': FieldValue.serverTimestamp(),
+      });
+
+      // 2. Return ordered ingredients to the factory's global inventory
+      await _inventoryController.returnCancelledStock(
+        transaction,
+        ingredients,
+      );
+    });
+    
+    print("✅ Order $orderId cancelled and stock returned successfully.");
+  }
+
 
   /// Generate readable order number (e.g., ORD-20251020-001)
   Future<String> _generateOrderNumber() async {
@@ -109,6 +191,7 @@ Future<List<Map<String, dynamic>>> getAllOrders() async {
     return [];
   }
 }
+
 
 
 }

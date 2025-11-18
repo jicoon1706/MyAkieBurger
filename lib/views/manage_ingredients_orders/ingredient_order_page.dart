@@ -61,6 +61,7 @@ class _IngredientOrderPageState extends State<IngredientOrderPage> {
   List<IngredientOrderItem> _ingredientOrderItems = [];
   bool _isLoading = true;
   String? _errorMessage;
+  String _franchiseeName = 'Loading...';
 
   final IngredientsInventoryController _inventoryController =
       IngredientsInventoryController();
@@ -74,6 +75,38 @@ class _IngredientOrderPageState extends State<IngredientOrderPage> {
   void initState() {
     super.initState();
     _fetchIngredients();
+    _loadFranchiseeName();
+  }
+
+  Future<void> _loadFranchiseeName() async {
+    final franchiseeId = await getLoggedInUserId();
+    if (franchiseeId == null) {
+      print("❌ No franchisee ID found in SharedPreferences");
+      return;
+    }
+
+    final name = await _fetchFranchiseeName(franchiseeId);
+
+    setState(() {
+      _franchiseeName = name;
+    });
+  }
+
+  Future<String> _fetchFranchiseeName(String franchiseeId) async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(franchiseeId)
+          .get();
+
+      if (doc.exists) {
+        return doc.data()?['stall_name'] ?? 'Unknown Stall';
+      }
+    } catch (e) {
+      print("❌ Error fetching franchisee name: $e");
+    }
+
+    return 'Unknown Stall';
   }
 
   Future<void> _fetchIngredients() async {
@@ -154,8 +187,7 @@ class _IngredientOrderPageState extends State<IngredientOrderPage> {
       return;
     }
 
-    final franchiseeName =
-        'Akmal Burger Batu Pahat'; // Hardcoded for now, should be fetched from user profile
+    final franchiseeName = _franchiseeName;
 
     // Filter items with quantity > 0
     List<IngredientOrderItem> itemsToOrder = _ingredientOrderItems

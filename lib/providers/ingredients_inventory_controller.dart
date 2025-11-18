@@ -21,7 +21,6 @@ for (var doc in snapshot.docs) {
         .toList();
   }
 
-  /// Reduce stock after order submission
   Future<void> reduceStock(String ingredientId, int qtyTaken) async {
     final ref = _db.collection('ingredients').doc(ingredientId);
 
@@ -41,6 +40,79 @@ for (var doc in snapshot.docs) {
       transaction.update(ref, {'available': currentStock - qtyTaken});
     });
   }
+
+  /// 🌟 New: Reduce stock for multiple items in a batch/transaction
+  Future<void> reduceStockBatch(
+    Transaction transaction,
+    List<dynamic> orderedIngredients,
+  ) async {
+    for (var item in orderedIngredients) {
+      final ingredientName = item['ingredient_name'] as String;
+      final quantity = item['quantity'] as int;
+      
+      // Look up the ingredient in the global 'ingredients' collection by name
+      final ingredientQuery = await _db
+          .collection('ingredients')
+          .where('name', isEqualTo: ingredientName)
+          .limit(1)
+          .get();
+
+      if (ingredientQuery.docs.isNotEmpty) {
+        final docRef = ingredientQuery.docs.first.reference;
+        final data = ingredientQuery.docs.first.data();
+        final currentStock = data['available'] ?? 0;
+        
+        if (currentStock < quantity) {
+          throw Exception("Factory: Not enough stock for $ingredientName. Available: $currentStock, Ordered: $quantity");
+        }
+
+        // Add update operation to the existing transaction
+        transaction.update(docRef, {
+          'available': currentStock - quantity,
+          'updated_at': FieldValue.serverTimestamp(),
+        });
+        print('⬇️ Factory inventory reduced: $ingredientName by $quantity');
+      } else {
+        print('⚠️ Factory inventory item $ingredientName not found. Skipping reduction.');
+      }
+    }
+  }
+
+  Future<void> returnCancelledStock(
+    Transaction transaction,
+    List<dynamic> orderedIngredients,
+  ) async {
+    for (var item in orderedIngredients) {
+      final ingredientName = item['ingredient_name'] as String;
+      final quantity = item['quantity'] as int;
+
+      // Look up the ingredient in the global 'ingredients' collection by name
+      final ingredientQuery = await _db
+          .collection('ingredients')
+          .where('name', isEqualTo: ingredientName)
+          .limit(1)
+          .get();
+
+      if (ingredientQuery.docs.isNotEmpty) {
+        final docRef = ingredientQuery.docs.first.reference;
+        final data = ingredientQuery.docs.first.data();
+        final currentStock = data['available'] ?? 0;
+        
+        // Add quantity back to available stock
+        final newStock = currentStock + quantity;
+
+        // Add update operation to the existing transaction
+        transaction.update(docRef, {
+          'available': newStock,
+          'updated_at': FieldValue.serverTimestamp(),
+        });
+        print('⬆️ Factory inventory restocked: $ingredientName by $quantity');
+      } else {
+        print('⚠️ Factory inventory item $ingredientName not found. Cannot restock.');
+      }
+    }
+  }
+
 
   Future<void> updateIngredientDetails(
     String ingredientId,
