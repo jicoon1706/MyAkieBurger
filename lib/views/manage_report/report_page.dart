@@ -142,8 +142,10 @@ class _ReportPageState extends State<ReportPage> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  ReportDetailsPage(report: report),
+                              builder: (context) => ReportDetailsPage(
+                                report: report,
+                                isAdminView: false,
+                              ),
                             ),
                           );
                         },

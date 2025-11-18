@@ -73,9 +73,9 @@ class _FranchiseesListState extends State<FranchiseesList> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.admin,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: AppColors.admin,
         elevation: 0,
         title: const Text(
           'List of Franchisees',
@@ -101,10 +101,11 @@ class _FranchiseesListState extends State<FranchiseesList> {
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 hintText: 'Search franchisees...',
-                hintStyle: TextStyle(color: Colors.grey.shade500),
-                prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                hintStyle: TextStyle(color: Colors.white70),
+                prefixIcon: const Icon(Icons.search, color: Colors.white),
                 filled: true,
-                fillColor: Colors.grey.shade900,
+                // 💡 CHANGE: Replace Colors.grey.shade900 with AppColors.admin
+                fillColor: AppColors.lightPurple,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,

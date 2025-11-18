@@ -20,9 +20,9 @@ class _AdminHomepageState extends State<AdminHomepage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.admin,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: AppColors.admin,
         elevation: 0,
         leading: Padding(
           padding: const EdgeInsets.only(left: 16.0, right: 4.0),
@@ -71,7 +71,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: AppColors.admin,
+                  color: AppColors.lightPurple,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(

@@ -37,7 +37,7 @@ class _AdminMainContainerState extends State<AdminMainContainer> {
         currentIndex: _currentIndex,
         onTap: _onTabTapped,
         type: BottomNavigationBarType.fixed,
-        backgroundColor: const Color(0xFF33105D),
+        backgroundColor: AppColors.lightPurple,
         selectedItemColor: Colors.white,
         unselectedItemColor: Colors.white70,
         showSelectedLabels: true,

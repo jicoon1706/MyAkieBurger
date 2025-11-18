@@ -6,6 +6,8 @@ import 'package:myakieburger/providers/report_controller.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:myakieburger/widgets/custom_snackbar.dart';
 
+import 'package:myakieburger/views/manage_report/report_details_page.dart';
+
 class FranchiseeReports extends StatefulWidget {
   const FranchiseeReports({super.key});
 
@@ -49,9 +51,9 @@ class _FranchiseeReportsState extends State<FranchiseeReports> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.admin,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: AppColors.admin,
         elevation: 0,
         title: const Text(
           'Franchisee Reports',
@@ -95,11 +97,24 @@ class _FranchiseeReportsState extends State<FranchiseeReports> {
                   date = DateFormat('dd/MM/yyyy').format(createdDate);
                 }
 
-                return Lists(
-                  name: report['stall_name'] ?? 'Unknown',
-                  date: date,
-                  useProfileIcon: true,
-                  onDownload: () => _handleDownload(report['report_id'] ?? ''),
+                return GestureDetector(
+                  // 👈 Wrap the Lists widget in a GestureDetector
+                  onTap: () {
+                    // Navigate to Report Details Page, passing the entire report map
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ReportDetailsPage(report: report, isAdminView: true),
+                      ),
+                    );
+                  },
+                  child: Lists(
+                    name: report['stall_name'] ?? 'Unknown',
+                    date: date,
+                    useProfileIcon: true,
+                    onDownload: () =>
+                        _handleDownload(report['report_id'] ?? ''),
+                  ),
                 );
               },
             ),

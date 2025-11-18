@@ -5,15 +5,20 @@ import 'package:myakieburger/widgets/custom_snackbar.dart';
 
 class ReportDetailsPage extends StatelessWidget {
   final Map<String, dynamic> report;
+  final bool isAdminView; // 👈 New field to detect the viewer's role
 
-  const ReportDetailsPage({super.key, required this.report});
+  const ReportDetailsPage({super.key, required this.report,this.isAdminView = false,});
+
+  // Dynamic color getters based on view mode
+  Color get _primaryColor =>
+      isAdminView ? AppColors.admin : AppColors.primaryRed;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.primaryRed,
+      backgroundColor: _primaryColor,
       appBar: AppBar(
-        backgroundColor: AppColors.primaryRed,
+        backgroundColor: _primaryColor,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -95,7 +100,7 @@ class ReportDetailsPage extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.store, color: AppColors.primaryRed, size: 24),
+              Icon(Icons.store, color: _primaryColor, size: 24),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
