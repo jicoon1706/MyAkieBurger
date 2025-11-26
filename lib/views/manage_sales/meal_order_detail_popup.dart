@@ -415,4 +415,5 @@ class MealOrderDetailPopup extends StatelessWidget {
       ),
     );
   }
+
 }

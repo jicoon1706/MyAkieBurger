@@ -326,4 +326,5 @@ class FranchiseeDetailsPage extends StatelessWidget {
       ),
     );
   }
+
 }

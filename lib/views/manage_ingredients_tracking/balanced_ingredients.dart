@@ -165,4 +165,5 @@ class _BalancedIngredientsState extends State<BalancedIngredients> {
             ),
     );
   }
+
 }
