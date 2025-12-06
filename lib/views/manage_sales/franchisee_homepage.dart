@@ -8,6 +8,7 @@ import 'package:myakieburger/services/auth_service.dart';
 import 'package:myakieburger/views/manage_sales/meal_order_detail_popup.dart';
 import 'package:myakieburger/services/stall_ai_service.dart';
 import 'package:myakieburger/views/manage_sales/ai_forecast.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class FranchiseeHomepage extends StatefulWidget {
   const FranchiseeHomepage({super.key});
@@ -20,11 +21,13 @@ class FranchiseeHomepageState extends State<FranchiseeHomepage> {
   final MealOrderController _controller = MealOrderController();
   final IngredientsController _ingredientsController =
       IngredientsController(); // <--- NEW CONTROLLER INSTANCE
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance; // Add Firestore instance
 
   // Make this assignable in initState
   late final StallAIService _aiService;
 
-  String _stallName = 'My Akie Burger Stall'; // Placeholder/Default Name
+  String _stallName = 'Loading...'; // Initialize as loading
+  String _franchiseeName = '';
 
   double _totalSales = 0;
   String _weekRange = '';
@@ -40,23 +43,63 @@ void initState() {
   // Initialize StallAIService with both controllers
   _aiService = StallAIService(_ingredientsController, _controller);
 
-  _loadSalesData();
+    // Load user data first, then sales data
+    _loadUserData().then((_) {
+      _loadSalesData();
+    });
 }
 
+   Future<void> _loadUserData() async {
+    try {
+      // Get franchisee ID from auth service
+      final franchiseeId = await getLoggedInUserId();
+      
+      if (franchiseeId == null) {
+        print('❌ No franchisee ID found in auth service');
+        return;
+      }
+
+      // Fetch user data from Firestore
+      final userDoc = await _firestore.collection('users').doc(franchiseeId).get();
+      
+      if (userDoc.exists) {
+        final userData = userDoc.data();
+        
+        if (mounted) {
+          setState(() {
+            _franchiseeId = franchiseeId;
+            _franchiseeName = userData?['franchisee_name'] ?? 'Unknown';
+            _stallName = userData?['stall_name'] ?? 'My Akie Burger Stall';
+          });
+        }
+        
+        print('✅ User data loaded:');
+        print('   - Franchisee ID: $_franchiseeId');
+        print('   - Franchisee Name: $_franchiseeName');
+        print('   - Stall Name: $_stallName');
+      } else {
+        print('⚠️ User document not found for ID: $franchiseeId');
+      }
+    } catch (e) {
+      print('❌ Error loading user data: $e');
+    }
+  }
+
   Future<void> _loadSalesData() async {
-    final franchiseeId = await getLoggedInUserId();
-    if (franchiseeId == null) return;
+    if (_franchiseeId == null) {
+      print('⚠️ Cannot load sales data: franchiseeId is null');
+      return;
+    }
 
     final now = DateTime.now();
     final weekStart = now.subtract(Duration(days: now.weekday - 1));
     final weekEnd = weekStart.add(const Duration(days: 6));
 
-    final totalSales = await _controller.getWeeklySales(franchiseeId);
-    final todayData = await _controller.getTodayOrders(franchiseeId);
+    final totalSales = await _controller.getWeeklySales(_franchiseeId!);
+    final todayData = await _controller.getTodayOrders(_franchiseeId!);
 
     if (mounted) {
       setState(() {
-        _franchiseeId = franchiseeId;
         _totalSales = totalSales;
         final total = todayData['total'];
         _todayTotal = (total is int) ? total.toDouble() : (total ?? 0.0);
@@ -90,57 +133,77 @@ void initState() {
     await _loadSalesData();
   }
 
-  void _showAIForecast() async {
-  if (_franchiseeId == null) return;
+   void _showAIForecast() async {
+    if (_franchiseeId == null) {
+      print('❌ Cannot show AI forecast: franchiseeId is null');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please login again to access AI forecast'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (context) =>
-        const Center(child: CircularProgressIndicator(color: Colors.white)),
-  );
-
-  try {
-    final ingredientsList =
-        await _ingredientsController.getIngredients(_franchiseeId!);
-
-    final List<Map<String, dynamic>> ingredientsData = ingredientsList
-        .map(
-          (i) => {
-            'name': i.name,
-            'balance': (i.balance is num) ? i.balance : (i.balance ?? 0),
-          },
-        )
-        .toList();
-
-    // Update this to reflect 7-day prediction
-    const int mockPredictedSales = 1050; // 150/day * 7 days
-    
-    final forecast = await _aiService.generateDigitalTwinInsights(
-      predictedSales: mockPredictedSales,
-      ingredients: ingredientsData,
-      stallName: _stallName,
-      franchiseeId: _franchiseeId!,
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) =>
+          const Center(child: CircularProgressIndicator(color: Colors.white)),
     );
 
-    if (mounted) Navigator.pop(context);
+    try {
+      // Get ingredients for this specific franchisee
+      final ingredientsList =
+          await _ingredientsController.getIngredients(_franchiseeId!);
 
-    if (mounted) {
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        builder: (context) => AIForecast(
-          forecastData: forecast, 
-          stallName: _stallName,
+      final List<Map<String, dynamic>> ingredientsData = ingredientsList
+          .map(
+            (i) => {
+              'name': i.name,
+              'balance': (i.balance is num) ? i.balance : (i.balance ?? 0),
+            },
+          )
+          .toList();
+
+      print('📊 Generating AI forecast for:');
+      print('   - Franchisee ID: $_franchiseeId');
+      print('   - Stall Name: $_stallName');
+      print('   - Ingredients Count: ${ingredientsData.length}');
+      
+      // Generate forecast with franchisee-specific data
+      final forecast = await _aiService.generateDigitalTwinInsights(
+        predictedSales: 1050,
+        ingredients: ingredientsData,
+        stallName: _stallName,
+        franchiseeId: _franchiseeId!,
+      );
+
+      if (mounted) Navigator.pop(context);
+
+      if (mounted) {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          builder: (context) => AIForecast(
+            forecastData: forecast, 
+            stallName: _stallName,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context);
+      print("❌ Error fetching AI Forecast or Inventory: $e");
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error loading forecast: ${e.toString()}'),
+          backgroundColor: Colors.red,
         ),
       );
     }
-  } catch (e) {
-    if (mounted) Navigator.pop(context);
-    print("Error fetching AI Forecast or Inventory: $e");
   }
-}
-
+  
   @override
   Widget build(BuildContext context) {
     final todayDate = DateFormat('dd/MM').format(DateTime.now());

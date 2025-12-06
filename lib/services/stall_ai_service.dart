@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:myakieburger/providers/ingredients_controller.dart';
 import 'package:myakieburger/providers/meal_order_controller.dart';
+import 'package:myakieburger/services/auth_service.dart'; // Make sure to import this
+import 'dart:math';
 
 class StallAIService {
   // A hypothetical AI service endpoint.
@@ -42,7 +44,7 @@ class StallAIService {
 
   // In StallAIService, update the _generateMockDemandForecast method:
 
-  Future<Map<String, dynamic>> _generateMockDemandForecast(
+  Future<Map<String, dynamic>> _generateRealDemandForecast(
     String franchiseeId,
     String stallName,
   ) async {
@@ -61,6 +63,7 @@ class StallAIService {
       return {
         ...forecast,
         'stall_name': forecast['stall_name'] ?? stallName,
+        'franchisee_id': franchiseeId, // Add franchisee ID to the result
         'forecast_period': forecast['forecast_period'] ?? 'Next 7 days',
         'menu_predictions': forecast['menu_predictions'] ?? [],
         'data_source': forecast['data_source'] ?? 'Real historical data',
@@ -76,6 +79,7 @@ class StallAIService {
 
       return {
         'stall_name': stallName,
+        'franchisee_id': franchiseeId,
         'forecast_period': 'Next 7 days',
         'total_predicted_units': 1050,
         'menu_predictions': [
@@ -92,6 +96,14 @@ class StallAIService {
         'generated_at': DateTime.now().toIso8601String(),
       };
     }
+  }
+
+  Future<Map<String, dynamic>> _generateMockDemandForecast(
+    String franchiseeId,
+    String stallName,
+  ) async {
+    // Just call the renamed method
+    return await _generateRealDemandForecast(franchiseeId, stallName);
   }
 
   List<String> _calculateProcurementNeeds(
@@ -215,7 +227,6 @@ class StallAIService {
     return procurementList;
   }
 
-  // In your generateDigitalTwinInsights method, add debug logs:
   Future<Map<String, dynamic>> generateDigitalTwinInsights({
     required int predictedSales,
     required List<Map<String, dynamic>> ingredients,
@@ -224,38 +235,74 @@ class StallAIService {
   }) async {
     try {
       print("🚀 Starting AI forecast for franchisee: $franchiseeId");
+      print("🏪 Stall Name: $stallName");
       print("📦 Ingredients data received: ${ingredients.length} items");
+
+      // Log each ingredient for debugging
       ingredients.forEach((item) {
         print("   - ${item['name']}: ${item['balance']}");
       });
 
-      final aiResult = await _generateMockDemandForecast(
+      // Get the forecast using the franchisee ID
+      final aiResult = await _generateRealDemandForecast(
         franchiseeId,
         stallName,
       );
-      print("📊 AI Forecast result: $aiResult");
+
+      print("📊 AI Forecast result for $franchiseeId:");
+      print("   Data Source: ${aiResult['data_source']}");
+      print("   Based On: ${aiResult['based_on_days']}");
+      print(
+        "   Menu Predictions: ${aiResult['menu_predictions']?.length ?? 0} items",
+      );
 
       final List<String> menuPredictions = List<String>.from(
         aiResult['menu_predictions'] ?? [],
       );
-      print("📋 Menu predictions: $menuPredictions");
 
+      print("📋 Menu predictions count: ${menuPredictions.length}");
+
+      if (menuPredictions.isEmpty) {
+        print("⚠️ No menu predictions found for franchisee: $franchiseeId");
+      } else {
+        print("📋 First few predictions:");
+        for (int i = 0; i < min(3, menuPredictions.length); i++) {
+          print("   ${i + 1}. ${menuPredictions[i]}");
+        }
+      }
+
+      // Calculate procurement needs based on the user's actual inventory
       final List<String> calculatedProcurementList = _calculateProcurementNeeds(
         menuPredictions,
         ingredients,
       );
 
+      // Add franchisee info to the result
+      aiResult['franchisee_id'] = franchiseeId;
+      aiResult['stall_name'] = stallName;
       aiResult['procurement_list'] = calculatedProcurementList;
+
+      print(
+        "✅ AI Forecast completed successfully for franchisee: $franchiseeId",
+      );
+
       return aiResult;
     } catch (e) {
-      print('❌ AI Service Error: $e. Falling back to local logic.');
-      return _generateLocalFallbackInsights(predictedSales, ingredients);
+      print('❌ AI Service Error for franchisee $franchiseeId: $e');
+      return _generateLocalFallbackInsights(
+        predictedSales,
+        ingredients,
+        franchiseeId,
+        stallName,
+      );
     }
   }
 
   Map<String, dynamic> _generateLocalFallbackInsights(
     int predictedSales,
     List<Map<String, dynamic>> ingredients,
+    String franchiseeId,
+    String stallName,
   ) {
     final warnings = <String>[];
     final recommendations = <String>[];
@@ -269,6 +316,7 @@ class StallAIService {
               ? i['balance']
               : (int.tryParse(i['balance']?.toString() ?? '0') ?? 0)),
     );
+
     if (totalStock < predictedSales * 1) {
       warnings.add('Total stock seems low for predicted sales.');
       recommendations.add('Consider purchasing more high-turn items.');
@@ -285,10 +333,23 @@ class StallAIService {
 
     return {
       'predicted_sales': predictedSales,
+      'franchisee_id': franchiseeId,
+      'stall_name': stallName,
       'warnings': warnings,
       'recommendations': recommendations,
       'risk_level': riskLevel,
       'source': 'Local Fallback',
+      'data_source': 'Fallback (no historical data)',
+      'menu_predictions': [
+        'Biasa (Chicken/Meat): 210 units',
+        'Special (Chicken/Meat): 180 units',
+        'Double (Chicken/Meat): 160 units',
+        'D. Special (Chicken/Meat): 120 units',
+        'Oblong (Chicken/Meat): 140 units',
+        'Oblong Kambing: 80 units',
+        'Hotdog: 90 units',
+        'Benjo: 70 units',
+      ],
     };
   }
 }

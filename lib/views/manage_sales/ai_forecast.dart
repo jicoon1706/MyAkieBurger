@@ -36,6 +36,11 @@ class AIForecast extends StatelessWidget {
     final String dateRange =
         '${dateFormat.format(startDate)} - ${dateFormat.format(endDate)}';
     final forecastPeriod = forecastData['forecast_period'] ?? '7 days';
+    final dataSource = forecastData['data_source'] ?? 'Real historical data';
+    final basedOnDays = forecastData['based_on_days'] ?? 'Last 7 days analysis';
+
+    // Get franchisee ID if available
+    final franchiseeId = forecastData['franchisee_id'] ?? 'Unknown';
 
     final List<String> menuPredictions = List<String>.from(
       forecastData['menu_predictions'] ?? [],
@@ -96,17 +101,17 @@ class AIForecast extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '$dateRange • $forecastPeriod',
+                  'For: $stallName',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.8),
-                    fontSize: 13,
+                    color: Colors.white.withOpacity(0.7),
+                    fontSize: 12,
                   ),
                 ),
               ],
             ),
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
 
           // Forecast Summary Card
           Container(
@@ -149,6 +154,14 @@ class AIForecast extends StatelessWidget {
                           color: Colors.white.withOpacity(0.85),
                           fontSize: 12,
                           height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        basedOnDays,
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.6),
+                          fontSize: 10,
                         ),
                       ),
                     ],
