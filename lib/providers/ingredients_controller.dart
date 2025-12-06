@@ -6,77 +6,28 @@ import 'package:myakieburger/domains/ingredients_model.dart';
 class IngredientsController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-   /// 🔹 Recipe mapping: menu items to their ingredient requirements
+  /// 🔹 Recipe mapping: menu items to their ingredient requirements
   static const Map<String, Map<String, int>> recipeMap = {
     // ===== CHICKEN CATEGORY =====
-    'Chicken_Biasa': {
-      'Roti (pieces)': 1,
-      'Ayam (80g)': 1,
-    },
-    'Chicken_Special': {
-      'Roti (pieces)': 1,
-      'Ayam (80g)': 1,
-      'Telur': 1,
-    },
-    'Chicken_Double': {
-      'Roti (pieces)': 1,
-      'Ayam (80g)': 2,
-    },
-    'Chicken_D. Special': {
-      'Roti (pieces)': 1,
-      'Ayam (80g)': 2,
-      'Telur': 1,
-    },
-    'Chicken_Oblong': {
-      'Roti Oblong': 1,
-      'Ayam Oblong': 1,
-    },
+    'Chicken_Biasa': {'Roti (pieces)': 1, 'Ayam (80g)': 1},
+    'Chicken_Special': {'Roti (pieces)': 1, 'Ayam (80g)': 1, 'Telur': 1},
+    'Chicken_Double': {'Roti (pieces)': 1, 'Ayam (80g)': 2},
+    'Chicken_D. Special': {'Roti (pieces)': 1, 'Ayam (80g)': 2, 'Telur': 1},
+    'Chicken_Oblong': {'Roti Oblong': 1, 'Ayam Oblong': 1},
 
     // ===== MEAT CATEGORY =====
-    'Meat_Biasa': {
-      'Roti (pieces)': 1,
-      'Daging (80g)': 1,
-    },
-    'Meat_Special': {
-      'Roti (pieces)': 1,
-      'Daging (80g)': 1,
-      'Telur': 1,
-    },
-    'Meat_Double': {
-      'Roti (pieces)': 1,
-      'Daging (80g)': 2,
-    },
-    'Meat_D. Special': {
-      'Roti (pieces)': 1,
-      'Daging (80g)': 2,
-      'Telur': 1,
-    },
-    'Meat_Oblong': {
-      'Roti Oblong': 1,
-      'Daging Oblong': 1,
-    },
+    'Meat_Biasa': {'Roti (pieces)': 1, 'Daging (80g)': 1},
+    'Meat_Special': {'Roti (pieces)': 1, 'Daging (80g)': 1, 'Telur': 1},
+    'Meat_Double': {'Roti (pieces)': 1, 'Daging (80g)': 2},
+    'Meat_D. Special': {'Roti (pieces)': 1, 'Daging (80g)': 2, 'Telur': 1},
+    'Meat_Oblong': {'Roti Oblong': 1, 'Daging Oblong': 1},
 
     // ===== OTHERS CATEGORY =====
-    'Others_Smokey': {
-      'Roti (pieces)': 1,
-      'Daging Smokey (100g)': 1,
-    },
-    'Others_Kambing': {
-      'Roti (pieces)': 1,
-      'Daging Kambing': 1,
-    },
-    'Others_Oblong Kambing': {
-      'Roti Oblong': 1,
-      'Kambing Oblong': 1,
-    },
-    'Others_Hotdog': {
-      'Roti Hotdog': 1,
-      'Sosej': 1,
-    },
-    'Others_Benjo': {
-      'Roti (pieces)': 1,
-      'Telur': 1,
-    },
+    'Others_Smokey': {'Roti (pieces)': 1, 'Daging Smokey (100g)': 1},
+    'Others_Kambing': {'Roti (pieces)': 1, 'Daging Kambing': 1},
+    'Others_Oblong Kambing': {'Roti Oblong': 1, 'Kambing Oblong': 1},
+    'Others_Hotdog': {'Roti Hotdog': 1, 'Sosej': 1},
+    'Others_Benjo': {'Roti (pieces)': 1, 'Telur': 1},
   };
 
   /// 🔹 Add-on ingredient mapping
@@ -86,28 +37,51 @@ class IngredientsController {
     'Daging Smokey': 'Daging Smokey (100g)',
     'Daging Exotic': 'Daging Exotic',
     'Daging Kambing': 'Daging Kambing (70g)',
-    'Daging Oblong': 'Daging Oblong',        // Fixed: was mapping to Kambing Oblong
-    'Ayam Oblong': 'Ayam Oblong',            // Added: was missing
+    'Daging Oblong': 'Daging Oblong', // Fixed: was mapping to Kambing Oblong
+    'Ayam Oblong': 'Ayam Oblong', // Added: was missing
     'Kambing Oblong': 'Kambing Oblong',
     'Sosej': 'Sosej',
     'Cheese': 'Cheese',
     'Telur': 'Telur',
   };
 
+  /// Normalize menu → recipeMap key safely
+  static String normalizeKey(String input) {
+    return input
+        .trim()
+        .replaceAll(' ', '_')
+        .replaceAll('.', '')
+        .replaceAll('-', '_')
+        .toLowerCase();
+  }
+
+  /// Find matching recipe key safely
+  static String? findMatchingRecipeKey(String category, String menuName) {
+    final rawKey = '${category}_$menuName';
+    final normalizedRaw = normalizeKey(rawKey);
+
+    for (final key in recipeMap.keys) {
+      if (normalizeKey(key) == normalizedRaw) {
+        return key;
+      }
+    }
+
+    return null;
+  }
+
   Future<void> addReceivedIngredients(
     Transaction transaction,
     String franchiseeId,
     List<dynamic> orderedIngredients,
   ) async {
-    final formattedDate =
-        DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now());
-    
+    final formattedDate = DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now());
+
     // Process each ingredient in the completed order
     for (var item in orderedIngredients) {
       final ingredientName = item['ingredient_name'] as String;
       final quantity = item['quantity'] as int;
       final price = (item['unit_price'] as num).toDouble();
-      
+
       // Find the existing ingredient document by name
       final ingredientQuery = await _firestore
           .collection('users')
@@ -120,7 +94,7 @@ class IngredientsController {
       if (ingredientQuery.docs.isNotEmpty) {
         final docRef = ingredientQuery.docs.first.reference;
         final data = ingredientQuery.docs.first.data();
-        
+
         // Calculate new values
         final newReceived = (data['received'] ?? 0) + quantity;
         final newBalance = (data['balance'] ?? 0) + quantity;
@@ -133,7 +107,9 @@ class IngredientsController {
           'updated_at': formattedDate,
         });
 
-        print('✅ Franchisee $franchiseeId received $quantity of $ingredientName');
+        print(
+          '✅ Franchisee $franchiseeId received $quantity of $ingredientName',
+        );
       } else {
         // If the ingredient doesn't exist, create it (assuming it's a new ingredient)
         final newDocRef = _firestore
@@ -152,17 +128,22 @@ class IngredientsController {
           'balance': quantity,
           'updated_at': formattedDate,
         });
-        print('➕ Franchisee $franchiseeId created new ingredient $ingredientName');
+        print(
+          '➕ Franchisee $franchiseeId created new ingredient $ingredientName',
+        );
       }
     }
   }
 
   /// 🔹 Update or create ingredient record
   Future<void> updateIngredient(
-      String franchiseeId, IngredientModel ingredient) async {
+    String franchiseeId,
+    IngredientModel ingredient,
+  ) async {
     try {
-      final formattedDate =
-          DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now());
+      final formattedDate = DateFormat(
+        'dd/MM/yyyy HH:mm',
+      ).format(DateTime.now());
 
       final ingredientRef = _firestore
           .collection('users')
@@ -204,14 +185,17 @@ class IngredientsController {
     }
   }
 
+  
+
   /// 🔹 Deduct ingredients based on meal order
   Future<void> deductIngredientsForOrder(
     String franchiseeId,
     List<Map<String, dynamic>> meals,
   ) async {
     try {
-      final formattedDate =
-          DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now());
+      final formattedDate = DateFormat(
+        'dd/MM/yyyy HH:mm',
+      ).format(DateTime.now());
 
       // Aggregate all ingredient requirements
       Map<String, int> totalIngredientsNeeded = {};
@@ -222,16 +206,18 @@ class IngredientsController {
         final quantity = meal['quantity'] as int;
         final addOns = meal['add_ons'] as List<dynamic>? ?? [];
 
-        // Get base recipe
-        final recipeKey = '${category}_$menuName';
-        final recipe = recipeMap[recipeKey];
+        final recipeKey = IngredientsController.findMatchingRecipeKey(
+          category,
+          menuName,
+        );
+        final recipe = recipeKey != null ? recipeMap[recipeKey] : null;
 
         if (recipe != null) {
           // Add base ingredients
           recipe.forEach((ingredientName, amountPerItem) {
             totalIngredientsNeeded[ingredientName] =
                 (totalIngredientsNeeded[ingredientName] ?? 0) +
-                    (amountPerItem * quantity);
+                (amountPerItem * quantity);
           });
         } else {
           print('⚠️ No recipe found for $recipeKey');
@@ -246,7 +232,7 @@ class IngredientsController {
           if (ingredientName != null) {
             totalIngredientsNeeded[ingredientName] =
                 (totalIngredientsNeeded[ingredientName] ?? 0) +
-                    (addOnQuantity * quantity);
+                (addOnQuantity * quantity);
           }
         }
       }
@@ -283,7 +269,8 @@ class IngredientsController {
           });
 
           print(
-              '✅ Updated $ingredientName: used +$amountToDeduct, balance -$amountToDeduct');
+            '✅ Updated $ingredientName: used +$amountToDeduct, balance -$amountToDeduct',
+          );
         } else {
           print('⚠️ Ingredient "$ingredientName" not found in database');
         }

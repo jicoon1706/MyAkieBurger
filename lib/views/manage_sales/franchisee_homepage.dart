@@ -3,8 +3,11 @@ import 'package:intl/intl.dart';
 import 'package:myakieburger/theme/app_colors.dart';
 import 'package:myakieburger/routes.dart';
 import 'package:myakieburger/providers/meal_order_controller.dart';
+import 'package:myakieburger/providers/ingredients_controller.dart';
 import 'package:myakieburger/services/auth_service.dart';
 import 'package:myakieburger/views/manage_sales/meal_order_detail_popup.dart';
+import 'package:myakieburger/services/stall_ai_service.dart';
+import 'package:myakieburger/views/manage_sales/ai_forecast.dart';
 
 class FranchiseeHomepage extends StatefulWidget {
   const FranchiseeHomepage({super.key});
@@ -15,6 +18,13 @@ class FranchiseeHomepage extends StatefulWidget {
 
 class FranchiseeHomepageState extends State<FranchiseeHomepage> {
   final MealOrderController _controller = MealOrderController();
+  final IngredientsController _ingredientsController =
+      IngredientsController(); // <--- NEW CONTROLLER INSTANCE
+
+  // Make this assignable in initState
+  late final StallAIService _aiService;
+
+  String _stallName = 'My Akie Burger Stall'; // Placeholder/Default Name
 
   double _totalSales = 0;
   String _weekRange = '';
@@ -24,10 +34,14 @@ class FranchiseeHomepageState extends State<FranchiseeHomepage> {
   bool _isLoading = true;
 
   @override
-  void initState() {
-    super.initState();
-    _loadSalesData();
-  }
+void initState() {
+  super.initState();
+
+  // Initialize StallAIService with both controllers
+  _aiService = StallAIService(_ingredientsController, _controller);
+
+  _loadSalesData();
+}
 
   Future<void> _loadSalesData() async {
     final franchiseeId = await getLoggedInUserId();
@@ -75,6 +89,57 @@ class FranchiseeHomepageState extends State<FranchiseeHomepage> {
   Future<void> _onRefresh() async {
     await _loadSalesData();
   }
+
+  void _showAIForecast() async {
+  if (_franchiseeId == null) return;
+
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) =>
+        const Center(child: CircularProgressIndicator(color: Colors.white)),
+  );
+
+  try {
+    final ingredientsList =
+        await _ingredientsController.getIngredients(_franchiseeId!);
+
+    final List<Map<String, dynamic>> ingredientsData = ingredientsList
+        .map(
+          (i) => {
+            'name': i.name,
+            'balance': (i.balance is num) ? i.balance : (i.balance ?? 0),
+          },
+        )
+        .toList();
+
+    // Update this to reflect 7-day prediction
+    const int mockPredictedSales = 1050; // 150/day * 7 days
+    
+    final forecast = await _aiService.generateDigitalTwinInsights(
+      predictedSales: mockPredictedSales,
+      ingredients: ingredientsData,
+      stallName: _stallName,
+      franchiseeId: _franchiseeId!,
+    );
+
+    if (mounted) Navigator.pop(context);
+
+    if (mounted) {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        builder: (context) => AIForecast(
+          forecastData: forecast, 
+          stallName: _stallName,
+        ),
+      );
+    }
+  } catch (e) {
+    if (mounted) Navigator.pop(context);
+    print("Error fetching AI Forecast or Inventory: $e");
+  }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -330,7 +395,16 @@ class FranchiseeHomepageState extends State<FranchiseeHomepage> {
           ),
         ),
       ),
-      // Removed FloatingActionButton
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showAIForecast,
+        icon: const Icon(Icons.psychology_alt),
+        label: const Text('AI Forecast', style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+        elevation: 4,
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 }
