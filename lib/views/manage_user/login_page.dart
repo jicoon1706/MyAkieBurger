@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:myakieburger/services/auth_service.dart'; // 🆕 Import auth service
 import '../../widgets/custom_snackbar.dart';
 
 String hashPassword(String password) {
@@ -22,10 +23,16 @@ class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
-  String _selectedRole = 'Franchisee'; // Default role
-  bool _obscurePassword = true; // 👁️ toggle password visibility
+  String _selectedRole = 'Franchisee';
+  bool _obscurePassword = true;
+  bool _isLoading = false; // 🆕 Add loading state
 
-  final List<String> _roles = ['Franchisee', 'Admin', 'Factory Admin'];
+  final List<String> _roles = [
+    'Franchisee',
+    'Admin',
+    'Factory Admin',
+    'Delivery Agent',
+  ];
 
   @override
   void dispose() {
@@ -48,14 +55,29 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
+    // 🆕 Show loading state
+    setState(() {
+      _isLoading = true;
+    });
+
     try {
       final querySnapshot = await FirebaseFirestore.instance
           .collection('users')
           .where('username', isEqualTo: username)
           .limit(1)
-          .get();
+          .get()
+        .timeout(
+          const Duration(seconds: 10), // 10 second timeout
+          onTimeout: () {
+            throw Exception('Connection timeout. Please check your internet connection.');
+          },
+        );
 
       if (querySnapshot.docs.isEmpty) {
+        if (!mounted) return;
+        setState(() {
+          _isLoading = false;
+        });
         CustomSnackbar.show(
           context,
           message: 'User not found',
@@ -74,6 +96,10 @@ class _LoginPageState extends State<LoginPage> {
       final storedRole = (userData['role'] ?? '').toString().trim();
 
       if (hashedInput != storedPassword) {
+        if (!mounted) return;
+        setState(() {
+          _isLoading = false;
+        });
         CustomSnackbar.show(
           context,
           message: 'Incorrect password',
@@ -84,6 +110,10 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       if (storedRole.toLowerCase() != _selectedRole.toLowerCase()) {
+        if (!mounted) return;
+        setState(() {
+          _isLoading = false;
+        });
         CustomSnackbar.show(
           context,
           message: 'Incorrect role selected. Please choose the right role.',
@@ -93,18 +123,21 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      // Save user ID
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('franchiseeId', userId);
-
+      // Save user session
       String role = userData['role'] ?? 'Franchisee';
-      role = role[0].toUpperCase() + role.substring(1).toLowerCase();
+      await saveUserSession(userId, role);
+
+      print('✅ User session saved - ID: $userId, Role: $role');
+
+      if (!mounted) return;
 
       // Navigate by role
-      if (role == 'Admin') {
+      if (role.toLowerCase() == 'admin') {
         Navigator.pushReplacementNamed(context, Routes.adminMainContainer);
-      } else if (role == 'Factory admin') {
+      } else if (role.toLowerCase() == 'factory admin') {
         Navigator.pushReplacementNamed(context, Routes.fad);
+      } else if (role.toLowerCase() == 'delivery agent') {
+        Navigator.pushReplacementNamed(context, Routes.DAMainContainer);
       } else {
         Navigator.pushReplacementNamed(context, Routes.franchiseeMainContainer);
       }
@@ -116,9 +149,14 @@ class _LoginPageState extends State<LoginPage> {
         icon: Icons.check_circle_outline,
       );
     } catch (e) {
+      print('❌ Login error: $e');
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
       CustomSnackbar.show(
         context,
-        message: 'Login failed: $e',
+        message: 'Login failed: ${e.toString()}',
         backgroundColor: Colors.red,
         icon: Icons.error_outline,
       );
@@ -129,149 +167,201 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              // Header with logo
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 40),
-                decoration: const BoxDecoration(color: Color(0xFF8B2E1F)),
-                child: Center(
-                  child: Image.asset(
-                    'assets/logoAkie.png',
-                    width: 200,
-                    fit: BoxFit.contain,
+      body: Stack(
+        children: [
+          SafeArea(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  // Header with logo
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 40),
+                    decoration: const BoxDecoration(color: Color(0xFF8B2E1F)),
+                    child: Center(
+                      child: Image.asset(
+                        'assets/logoAkie.png',
+                        width: 200,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
                   ),
-                ),
-              ),
 
-              // Login form
-              Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 20),
-                      const Text(
-                        'Login to your Account',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 30),
-
-                      // Username field
-                      TextFormField(
-                        controller: _usernameController,
-                        decoration: InputDecoration(
-                          labelText: 'Username',
-                          filled: true,
-                          fillColor: Colors.grey[200],
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Password field with eye icon
-                      TextFormField(
-                        controller: _passwordController,
-                        obscureText: _obscurePassword,
-                        decoration: InputDecoration(
-                          labelText: 'Password',
-                          filled: true,
-                          fillColor: Colors.grey[200],
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide.none,
-                          ),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePassword
-                                  ? Icons.visibility_off
-                                  : Icons.visibility,
+                  // Login form
+                  Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 20),
+                          const Text(
+                            'Login to your Account',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
                             ),
-                            onPressed: () {
-                              setState(() {
-                                _obscurePassword = !_obscurePassword;
-                              });
-                            },
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
+                          const SizedBox(height: 30),
 
-                      // Roles dropdown
-                      DropdownButtonFormField<String>(
-                        value: _selectedRole,
-                        decoration: InputDecoration(
-                          labelText: 'Roles',
-                          filled: true,
-                          fillColor: Colors.grey[200],
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                        items: _roles.map((String role) {
-                          return DropdownMenuItem<String>(
-                            value: role,
-                            child: Text(role),
-                          );
-                        }).toList(),
-                        onChanged: (String? newValue) {
-                          setState(() {
-                            _selectedRole = newValue!;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Login button
-                      CustomButton(text: 'Login', onPressed: _handleLogin),
-
-                      const SizedBox(height: 40),
-
-                      // Register link
-                      Center(
-                        child: GestureDetector(
-                          onTap: () {
-                            Navigator.pushNamed(context, Routes.register);
-                          },
-                          child: RichText(
-                            text: const TextSpan(
-                              text: "Don't have an account? ",
-                              style: TextStyle(
-                                color: Colors.black87,
-                                fontSize: 14,
+                          // Username field
+                          TextFormField(
+                            controller: _usernameController,
+                            enabled: !_isLoading, // 🆕 Disable when loading
+                            decoration: InputDecoration(
+                              labelText: 'Username',
+                              filled: true,
+                              fillColor: Colors.grey[200],
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide.none,
                               ),
-                              children: [
-                                TextSpan(
-                                  text: 'Register',
-                                  style: TextStyle(
-                                    color: Color(0xFFB83D2A),
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
                             ),
                           ),
-                        ),
+                          const SizedBox(height: 16),
+
+                          // Password field with eye icon
+                          TextFormField(
+                            controller: _passwordController,
+                            enabled: !_isLoading, // 🆕 Disable when loading
+                            obscureText: _obscurePassword,
+                            decoration: InputDecoration(
+                              labelText: 'Password',
+                              filled: true,
+                              fillColor: Colors.grey[200],
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide.none,
+                              ),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _obscurePassword = !_obscurePassword;
+                                  });
+                                },
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Roles dropdown
+                          DropdownButtonFormField<String>(
+                            value: _selectedRole,
+                            onChanged: _isLoading // 🆕 Disable when loading
+                                ? null
+                                : (String? newValue) {
+                                    setState(() {
+                                      _selectedRole = newValue!;
+                                    });
+                                  },
+                            decoration: InputDecoration(
+                              labelText: 'Roles',
+                              filled: true,
+                              fillColor: Colors.grey[200],
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                            items: _roles.map((String role) {
+                              return DropdownMenuItem<String>(
+                                value: role,
+                                child: Text(role),
+                              );
+                            }).toList(),
+                          ),
+                          const SizedBox(height: 24),
+
+                          // Login button with loading state
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: _isLoading ? null : _handleLogin,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFB83D2A),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Text(
+                                      'Login',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 40),
+
+                          // Register link
+                          Center(
+                            child: GestureDetector(
+                              onTap: _isLoading
+                                  ? null
+                                  : () {
+                                      Navigator.pushNamed(
+                                          context, Routes.register);
+                                    },
+                              child: RichText(
+                                text: const TextSpan(
+                                  text: "Don't have an account? ",
+                                  style: TextStyle(
+                                    color: Colors.black87,
+                                    fontSize: 14,
+                                  ),
+                                  children: [
+                                    TextSpan(
+                                      text: 'Register',
+                                      style: TextStyle(
+                                        color: Color(0xFFB83D2A),
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
+                ],
+              ),
+            ),
+          ),
+          
+          // 🆕 Full screen loading overlay
+          if (_isLoading)
+            Container(
+              color: Colors.black.withOpacity(0.3),
+              child: const Center(
+                child: CircularProgressIndicator(
+                  color: Color(0xFFB83D2A),
                 ),
               ),
-            ],
-          ),
-        ),
+            ),
+        ],
       ),
     );
   }

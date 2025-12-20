@@ -54,17 +54,18 @@ class _OrderHistoryState extends State<OrderHistory> {
 
   @override
   Widget build(BuildContext context) {
-    // Group orders by status
-    final pendingOrders = _orders
-        .where((o) => (o['status'] ?? '') == 'Pending')
-        .toList();
+    // 🆕 Franchisee: Pending = "Pending" + "Approved", Completed = "Delivered"
+    final pendingOrders = _orders.where((o) {
+      final status = (o['status'] ?? '').toLowerCase();
+      return status == 'pending' || status == 'approved';
+    }).toList();
 
     final completedOrders = _orders
-        .where((o) => (o['status'] ?? '') == 'Completed')
+        .where((o) => (o['status'] ?? '').toLowerCase() == 'delivered')
         .toList();
 
     final cancelledOrders = _orders
-        .where((o) => (o['status'] ?? '') == 'Cancelled')
+        .where((o) => (o['status'] ?? '').toLowerCase() == 'cancelled')
         .toList();
 
     return Scaffold(

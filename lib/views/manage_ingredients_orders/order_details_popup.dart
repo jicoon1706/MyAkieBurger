@@ -8,13 +8,15 @@ import 'package:myakieburger/providers/ingredients_order_controller.dart';
 class OrderDetailsPopup extends StatefulWidget {
   final Map<String, dynamic> order;
   final VoidCallback? onOrderCancelled;
-  final bool isFactoryAdminView; // 👈 For Factory Admin mode
+  final bool isFactoryAdminView;
+  final bool isDeliveryAgentView;
 
   const OrderDetailsPopup({
     super.key,
     required this.order,
     this.onOrderCancelled,
-    this.isFactoryAdminView = false, // Default to franchisee view
+    this.isFactoryAdminView = false,
+    this.isDeliveryAgentView = false,
   });
 
   @override
@@ -25,15 +27,108 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
   bool _isCancelling = false;
   bool _isUpdating = false;
 
-  // Dynamic color getters based on view mode
-  Color get _primaryColor =>
-      widget.isFactoryAdminView ? AppColors.factoryBlue : AppColors.primaryRed;
-  Color get _accentColor => widget.isFactoryAdminView
-      ? AppColors.lightBlueAccent
-      : AppColors.accentRed;
+  Color get _primaryColor {
+    if (widget.isDeliveryAgentView) {
+      return AppColors.dAgent;
+    } else if (widget.isFactoryAdminView) {
+      return AppColors.factoryBlue;
+    } else {
+      return AppColors.primaryRed;
+    }
+  }
+
+  Color get _accentColor {
+    if (widget.isDeliveryAgentView) {
+      return AppColors.bgDAgent;
+    } else if (widget.isFactoryAdminView) {
+      return AppColors.lightBlueAccent;
+    } else {
+      return AppColors.accentRed;
+    }
+  }
+
+  String get _userRoleName {
+    if (widget.isDeliveryAgentView) {
+      return 'Delivery Agent';
+    } else if (widget.isFactoryAdminView) {
+      return 'Factory Admin';
+    } else {
+      return 'Franchisee';
+    }
+  }
+
+  // 🆕 Approve order (Factory Admin only)
+  Future<void> _handleApproveOrder() async {
+    setState(() => _isUpdating = true);
+
+    try {
+      final orderId = widget.order['supplyOrderId'];
+      if (orderId == null) {
+        throw Exception('Order ID not found');
+      }
+
+      // Update status to Approved and reduce factory inventory
+      await IngredientsOrderController().approveOrder(widget.order);
+
+      if (!mounted) return;
+
+      Navigator.pop(context);
+
+      CustomSnackbar.show(
+        context,
+        message: 'Order approved! Factory inventory reduced. Ready for delivery.',
+        backgroundColor: Colors.green,
+        icon: Icons.check_circle_outline,
+      );
+
+      widget.onOrderCancelled?.call();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isUpdating = false);
+
+      CustomSnackbar.show(
+        context,
+        message: 'Error approving order: $e',
+        backgroundColor: Colors.red,
+        icon: Icons.error_outline,
+      );
+    }
+  }
+
+  // 🆕 Mark as Delivered (Delivery Agent only)
+  Future<void> _handleMarkDelivered() async {
+    setState(() => _isUpdating = true);
+
+    try {
+      // Add franchisee stock when delivered
+      await IngredientsOrderController().markOrderAsDelivered(widget.order);
+
+      if (!mounted) return;
+
+      Navigator.pop(context);
+
+      CustomSnackbar.show(
+        context,
+        message: 'Order delivered! Franchisee stock updated.',
+        backgroundColor: Colors.green,
+        icon: Icons.check_circle_outline,
+      );
+
+      widget.onOrderCancelled?.call();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isUpdating = false);
+
+      CustomSnackbar.show(
+        context,
+        message: 'Error marking as delivered: $e',
+        backgroundColor: Colors.red,
+        icon: Icons.error_outline,
+      );
+    }
+  }
 
   Future<void> _cancelOrder() async {
-    // Show confirmation dialog (unchanged)
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -63,21 +158,17 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
     setState(() => _isCancelling = true);
 
     try {
-      // 1. Check for Order ID
       final orderId = widget.order['supplyOrderId'];
       if (orderId == null) {
         throw Exception('Order ID not found');
       }
 
-      // 📝 FIX: Both Franchisee and Factory Admin MUST call the controller method
-      // that handles status update AND inventory restock atomically.
       await IngredientsOrderController().cancelOrderAndRestock(widget.order);
 
       if (mounted) {
         Navigator.pop(context);
         CustomSnackbar.show(
           context,
-          // The message should reflect that stock might have been returned
           message: 'Order cancelled successfully. Factory inventory restored.',
           backgroundColor: Colors.green,
           icon: Icons.check_circle_outline,
@@ -97,80 +188,6 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
     }
   }
 
-  Future<void> _handleMarkComplete() async {
-    setState(() => _isUpdating = true);
-
-    try {
-      // Call the central controller method
-      await IngredientsOrderController().markOrderAsCompleted(widget.order);
-
-      if (!mounted) return;
-
-      Navigator.pop(context);
-
-      CustomSnackbar.show(
-        context,
-        message:
-            'Order marked as Completed, Franchisee stock added, & Factory inventory reduced!', // Updated message
-        backgroundColor: Colors.green,
-        icon: Icons.check_circle_outline,
-      );
-
-      widget.onOrderCancelled
-          ?.call(); // Refresh parent page (ListOfIngredients)
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isUpdating = false);
-
-      CustomSnackbar.show(
-        context,
-        message: 'Error completing order: $e',
-        backgroundColor: Colors.red,
-        icon: Icons.error_outline,
-      );
-    }
-  }
-
-  Future<void> _updateOrderStatus(String newStatus) async {
-    setState(() => _isUpdating = true);
-
-    try {
-      final orderId = widget.order['supplyOrderId'];
-      if (orderId == null) {
-        throw Exception('Order ID not found');
-      }
-
-      await FirebaseFirestore.instance
-          .collection('supply_orders_all')
-          .doc(orderId)
-          .update({
-            'status': newStatus,
-            'updated_at': FieldValue.serverTimestamp(),
-          });
-
-      if (mounted) {
-        Navigator.pop(context);
-        CustomSnackbar.show(
-          context,
-          message: 'Order marked as $newStatus',
-          backgroundColor: Colors.green,
-          icon: Icons.check_circle_outline,
-        );
-        widget.onOrderCancelled?.call();
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isUpdating = false);
-        CustomSnackbar.show(
-          context,
-          message: 'Failed to update order: $e',
-          backgroundColor: Colors.red,
-          icon: Icons.error_outline,
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final status = widget.order['status'] ?? 'Unknown';
@@ -180,7 +197,12 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
     final ingredients = widget.order['ingredients'] as List<dynamic>? ?? [];
     final paymentMethod = widget.order['payment_method'] ?? 'N/A';
     final createdAt = _formatDate(widget.order['created_at']);
+
+    // 🆕 Determine button states based on status
     final isPending = status.toLowerCase() == 'pending';
+    final isApproved = status.toLowerCase() == 'approved';
+    final isDelivered = status.toLowerCase() == 'delivered';
+    final isCancelled = status.toLowerCase() == 'cancelled';
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -200,11 +222,11 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header - Dynamic color based on view mode
+            // Header
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: _primaryColor, // 👈 Dynamic color
+                color: _primaryColor,
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(20),
                   topRight: Radius.circular(20),
@@ -230,9 +252,7 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          widget.isFactoryAdminView
-                              ? 'Order Details (Factory Admin)'
-                              : 'Order Details',
+                          'Order Details ($_userRoleName)',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 20,
@@ -365,7 +385,7 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
-                            color: _accentColor, // 👈 Dynamic color
+                            color: _accentColor,
                           ),
                         ),
                       ],
@@ -373,11 +393,13 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
 
                     const SizedBox(height: 20),
 
-                    // Action Buttons - Different for Admin vs Franchisee
-                    if (widget.isFactoryAdminView)
-                      _buildAdminActions(status, isPending)
+                    // Action Buttons
+                    if (widget.isDeliveryAgentView)
+                      _buildDeliveryAgentActions(status, isApproved, isDelivered)
+                    else if (widget.isFactoryAdminView)
+                      _buildAdminActions(status, isPending, isApproved, isDelivered)
                     else
-                      _buildFranchiseeActions(isPending),
+                      _buildFranchiseeActions(isPending, isApproved),
                   ],
                 ),
               ),
@@ -388,17 +410,88 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
     );
   }
 
-  // Admin-specific action buttons
-  Widget _buildAdminActions(String status, bool isPending) {
+  // 🆕 Delivery Agent Actions
+  Widget _buildDeliveryAgentActions(String status, bool isApproved, bool isDelivered) {
+    if (isApproved) {
+      // Show "Mark as Delivered" button for Approved orders
+      return Column(
+        children: [
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _isUpdating ? null : () => _handleMarkDelivered(),
+              icon: _isUpdating
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.local_shipping),
+              label: const Text('Mark as Delivered'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _isUpdating ? null : () => Navigator.pop(context),
+              icon: const Icon(Icons.close),
+              label: const Text('Close'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.grey[600],
+                side: BorderSide(color: Colors.grey[400]!),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    } else {
+      // Delivered/Cancelled orders - just close button
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.check),
+          label: const Text('Close'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _primaryColor,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
+  // 🆕 Factory Admin Actions
+  Widget _buildAdminActions(String status, bool isPending, bool isApproved, bool isDelivered) {
     if (isPending) {
+      // Pending orders - Show Approve and Cancel buttons
       return Column(
         children: [
           Row(
             children: [
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: _isUpdating ? null : () => _handleMarkComplete(),
-
+                  onPressed: _isUpdating ? null : () => _handleApproveOrder(),
                   icon: _isUpdating
                       ? const SizedBox(
                           width: 16,
@@ -409,7 +502,7 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
                           ),
                         )
                       : const Icon(Icons.check_circle),
-                  label: const Text('Mark Complete'),
+                  label: const Text('Approve Order'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
                     foregroundColor: Colors.white,
@@ -458,7 +551,7 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
         ],
       );
     } else {
-      // Completed/Cancelled orders - just show close button
+      // Approved/Delivered/Cancelled - just close button
       return SizedBox(
         width: double.infinity,
         child: ElevatedButton.icon(
@@ -478,9 +571,10 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
     }
   }
 
-  // Franchisee-specific action buttons
-  Widget _buildFranchiseeActions(bool isPending) {
+  // Franchisee Actions
+  Widget _buildFranchiseeActions(bool isPending, bool isApproved) {
     if (isPending) {
+      // Pending orders - allow cancellation
       return Row(
         children: [
           Expanded(
@@ -523,6 +617,7 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
         ],
       );
     } else {
+      // Approved/Delivered/Cancelled - show download and close
       return Row(
         children: [
           Expanded(
@@ -639,12 +734,12 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: _accentColor.withOpacity(0.1), // 👈 Dynamic color
+              color: _accentColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
               Icons.inventory_2,
-              color: _accentColor, // 👈 Dynamic color
+              color: _accentColor,
               size: 20,
             ),
           ),
@@ -683,8 +778,10 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
 
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
-      case 'completed':
+      case 'delivered':
         return Colors.green;
+      case 'approved':
+        return Colors.blue;
       case 'pending':
         return Colors.orange;
       case 'cancelled':
@@ -696,8 +793,10 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
 
   IconData _getStatusIcon(String status) {
     switch (status.toLowerCase()) {
-      case 'completed':
+      case 'delivered':
         return Icons.check_circle;
+      case 'approved':
+        return Icons.verified;
       case 'pending':
         return Icons.access_time;
       case 'cancelled':

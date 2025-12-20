@@ -29,6 +29,11 @@ import 'package:myakieburger/views/manage_user/franchisee_profile.dart';
 import 'package:myakieburger/views/manage_report/report_details_page.dart';
 import 'package:myakieburger/views/manage_sales/admin_analysis_page.dart';
 
+import 'package:myakieburger/views/manage_user/dagent_main_container.dart';
+import 'package:myakieburger/views/manage_user/dagent_profile.dart';
+
+import 'package:myakieburger/views/manage_user/franchisees_list.dart';
+
 class Routes {
   static const String login = '/';
   static const String register = '/register';
@@ -45,6 +50,7 @@ class Routes {
   static const String addReport = '/add_report';
   static const String franchiseeReports = '/franchisee_reports';
   static const String analysisPage = '/analysis_page';
+  static const String franchiseesList = '/franchisees_list';
 
   static const String adminMainContainer = '/adminMainContainer';
   static const String adminHomepage = '/admin_homepage';
@@ -58,6 +64,9 @@ class Routes {
 
   static const String reportDetailsPage = '/report_details_page';
   static const String adminAnalysisPage = '/admin_analysis_page';
+
+  static const String DAMainContainer = '/DAMainContainer';
+  static const String DAProfile = '/DAProfile';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -105,6 +114,8 @@ class Routes {
         return MaterialPageRoute(
           builder: (_) => const FranchiseesSalesLeaderboard(),
         );
+      case franchiseesList:
+        return MaterialPageRoute(builder: (_) => const FranchiseesList());
       case adminProfile:
         return MaterialPageRoute(builder: (_) => const AdminProfile());
       case franchiseeProfile:
@@ -116,6 +127,10 @@ class Routes {
         );
       case adminAnalysisPage:
         return MaterialPageRoute(builder: (_) => const AdminAnalysisPage());
+      case DAMainContainer:
+        return MaterialPageRoute(builder: (_) => const DeliveryAgentMainContainer());
+      case DAProfile:
+        return MaterialPageRoute(builder: (_) => const DAgentProfile());
 
       default:
         return MaterialPageRoute(

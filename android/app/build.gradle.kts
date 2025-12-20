@@ -54,3 +54,9 @@ android {
 flutter {
     source = "../.."
 }
+
+// 🆕 Add dependencies block here (at the end of the file)
+dependencies {
+    // Fix Google Play Services issues
+    implementation("com.google.android.gms:play-services-base:18.2.0")
+}
