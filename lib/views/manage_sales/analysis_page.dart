@@ -36,7 +36,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
     'November',
     'December',
   ];
-  final List<String> _years = ['2023', '2024', '2025'];
+  final List<String> _years = ['2023', '2024', '2025', '2026'];
 
   // Sample data for chart
   final List<Map<String, dynamic>> _chartData = [

@@ -15,7 +15,7 @@ class AdminSalesInsights extends StatefulWidget {
 class _AdminSalesInsightsState extends State<AdminSalesInsights> {
   final ReportController _reportController = ReportController();
 
-  String _selectedPeriod = 'Week';
+  String _selectedPeriod = 'Month';
   String? _selectedMonth;
   String? _selectedYear;
   int? _selectedWeek;
@@ -29,7 +29,7 @@ class _AdminSalesInsightsState extends State<AdminSalesInsights> {
   List<Map<String, dynamic>> _chartData = [];
   List<Map<String, dynamic>> _topFranchisees = [];
 
-  final List<String> _periods = ['Week', 'Month', 'Year']; // 🔹 Added Year
+  final List<String> _periods = ['Week', 'Month', 'Year'];
   final List<String> _months = [
     'January',
     'February',
@@ -44,7 +44,7 @@ class _AdminSalesInsightsState extends State<AdminSalesInsights> {
     'November',
     'December',
   ];
-  final List<String> _years = ['2023', '2024', '2025'];
+  final List<String> _years = ['2023', '2024', '2025', '2026'];
 
   final ScrollController _chartScrollController = ScrollController();
 
@@ -99,7 +99,7 @@ class _AdminSalesInsightsState extends State<AdminSalesInsights> {
       } else if (_selectedPeriod == 'Month') {
         await _processMonthlySales(allReports);
       } else {
-        await _processYearlySales(allReports); // 🔹 Added Year processing
+        await _processYearlySales(allReports);
       }
 
       setState(() => _isLoading = false);
@@ -109,6 +109,7 @@ class _AdminSalesInsightsState extends State<AdminSalesInsights> {
     }
   }
 
+  // 🔹 FIXED: Week shows all 7 days of the selected week
   Future<void> _processWeeklySales(List<Map<String, dynamic>> reports) async {
     final monthIndex = _months.indexOf(_selectedMonth!) + 1;
     final year = int.parse(_selectedYear!);
@@ -130,7 +131,7 @@ class _AdminSalesInsightsState extends State<AdminSalesInsights> {
     for (int i = 0; i < 7; i++) {
       final date = startDate.add(Duration(days: i));
       dailyData.add({
-        'label': DateFormat('E').format(date), // Mon, Tue, etc.
+        'label': DateFormat('E').format(date), // Mon, Tue, Wed, etc.
         'fullDate': DateFormat('dd/MM/yyyy').format(date),
         'value': 0.0,
       });
@@ -156,7 +157,6 @@ class _AdminSalesInsightsState extends State<AdminSalesInsights> {
           totalOrders += orders;
           totalMealsSold += meals;
 
-          // Track franchisee sales
           franchiseeSales[franchiseeName] =
               (franchiseeSales[franchiseeName] ?? 0.0) + sales;
 
@@ -188,74 +188,8 @@ class _AdminSalesInsightsState extends State<AdminSalesInsights> {
     });
   }
 
+  // 🔹 FIXED: Month shows all 12 months of the selected year
   Future<void> _processMonthlySales(List<Map<String, dynamic>> reports) async {
-    final monthIndex = _months.indexOf(_selectedMonth!) + 1;
-    final year = int.parse(_selectedYear!);
-
-    double totalSales = 0.0;
-    int totalOrders = 0;
-    int totalMealsSold = 0;
-    Map<String, double> franchiseeSales = {};
-    Map<int, double> weeklySales = {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0, 5: 0.0};
-
-    for (var report in reports) {
-      final reportDateStr = report['report_date'] as String?;
-      if (reportDateStr == null) continue;
-
-      try {
-        final reportDate = DateFormat('dd/MM/yyyy').parse(reportDateStr);
-
-        if (reportDate.month == monthIndex && reportDate.year == year) {
-          final sales = (report['total_sales'] as num?)?.toDouble() ?? 0.0;
-          final orders = report['total_orders'] as int? ?? 0;
-          final meals = report['total_meals_sold'] as int? ?? 0;
-          final franchiseeName =
-              report['franchisee_name'] as String? ?? 'Unknown';
-
-          totalSales += sales;
-          totalOrders += orders;
-          totalMealsSold += meals;
-
-          franchiseeSales[franchiseeName] =
-              (franchiseeSales[franchiseeName] ?? 0.0) + sales;
-
-          // Calculate week of month
-          final firstDayOfMonth = DateTime(year, monthIndex, 1);
-          final daysSinceFirst = reportDate.difference(firstDayOfMonth).inDays;
-          final weekNumber = (daysSinceFirst / 7).floor() + 1;
-
-          if (weekNumber >= 1 && weekNumber <= 5) {
-            weeklySales[weekNumber] = (weeklySales[weekNumber] ?? 0.0) + sales;
-          }
-        }
-      } catch (e) {
-        print('Error parsing date: $reportDateStr - $e');
-      }
-    }
-
-    // Sort franchisees by sales
-    final sortedFranchisees = franchiseeSales.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-
-    // Prepare chart data
-    final chartData = weeklySales.entries
-        .map((e) => {'label': 'Week ${e.key}', 'value': e.value})
-        .toList();
-
-    setState(() {
-      _totalSales = totalSales;
-      _totalOrders = totalOrders;
-      _totalMealsSold = totalMealsSold;
-      _chartData = chartData;
-      _topFranchisees = sortedFranchisees
-          .take(5)
-          .map((e) => {'name': e.key, 'sales': e.value})
-          .toList();
-    });
-  }
-
-  // 🔹 NEW: Process yearly sales (shows monthly breakdown)
-  Future<void> _processYearlySales(List<Map<String, dynamic>> reports) async {
     final year = int.parse(_selectedYear!);
 
     double totalSales = 0.0;
@@ -264,7 +198,7 @@ class _AdminSalesInsightsState extends State<AdminSalesInsights> {
     Map<String, double> franchiseeSales = {};
     Map<int, double> monthlySales = {};
 
-    // Initialize monthly sales for all 12 months
+    // Initialize all 12 months
     for (int i = 1; i <= 12; i++) {
       monthlySales[i] = 0.0;
     }
@@ -303,7 +237,7 @@ class _AdminSalesInsightsState extends State<AdminSalesInsights> {
     final sortedFranchisees = franchiseeSales.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
-    // Prepare chart data (monthly)
+    // Prepare chart data - all 12 months
     final chartData = monthlySales.entries
         .map(
           (e) => {
@@ -325,13 +259,77 @@ class _AdminSalesInsightsState extends State<AdminSalesInsights> {
     });
   }
 
+  // 🔹 FIXED: Year shows all available years with sales
+  Future<void> _processYearlySales(List<Map<String, dynamic>> reports) async {
+    double totalSales = 0.0;
+    int totalOrders = 0;
+    int totalMealsSold = 0;
+    Map<String, double> franchiseeSales = {};
+    Map<String, double> yearlySales = {};
+
+    // Initialize all years
+    for (final year in _years) {
+      yearlySales[year] = 0.0;
+    }
+
+    for (var report in reports) {
+      final reportDateStr = report['report_date'] as String?;
+      if (reportDateStr == null) continue;
+
+      try {
+        final reportDate = DateFormat('dd/MM/yyyy').parse(reportDateStr);
+        final yearStr = reportDate.year.toString();
+
+        // Only process if year is in our list
+        if (_years.contains(yearStr)) {
+          final sales = (report['total_sales'] as num?)?.toDouble() ?? 0.0;
+          final orders = report['total_orders'] as int? ?? 0;
+          final meals = report['total_meals_sold'] as int? ?? 0;
+          final franchiseeName =
+              report['franchisee_name'] as String? ?? 'Unknown';
+
+          totalSales += sales;
+          totalOrders += orders;
+          totalMealsSold += meals;
+
+          franchiseeSales[franchiseeName] =
+              (franchiseeSales[franchiseeName] ?? 0.0) + sales;
+
+          yearlySales[yearStr] = (yearlySales[yearStr] ?? 0.0) + sales;
+        }
+      } catch (e) {
+        print('Error parsing date: $reportDateStr - $e');
+      }
+    }
+
+    // Sort franchisees by sales
+    final sortedFranchisees = franchiseeSales.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    // Prepare chart data - all years
+    final chartData = _years
+        .map((year) => {'label': year, 'value': yearlySales[year] ?? 0.0})
+        .toList();
+
+    setState(() {
+      _totalSales = totalSales;
+      _totalOrders = totalOrders;
+      _totalMealsSold = totalMealsSold;
+      _chartData = chartData;
+      _topFranchisees = sortedFranchisees
+          .take(5)
+          .map((e) => {'name': e.key, 'sales': e.value})
+          .toList();
+    });
+  }
+
   String get _displayTitle {
     if (_selectedPeriod == 'Week') {
       return 'Week $_selectedWeek - $_selectedMonth $_selectedYear';
     } else if (_selectedPeriod == 'Month') {
-      return '$_selectedMonth $_selectedYear';
+      return 'Monthly Sales ($_selectedYear)';
     } else {
-      return 'Year $_selectedYear'; // 🔹 Added Year title
+      return 'Yearly Sales Overview';
     }
   }
 
@@ -538,29 +536,6 @@ class _AdminSalesInsightsState extends State<AdminSalesInsights> {
         ],
       );
     } else if (_selectedPeriod == 'Month') {
-      return Column(
-        children: [
-          _buildFilterDropdown(
-            value: _selectedMonth!,
-            items: _months,
-            onChanged: (value) {
-              setState(() => _selectedMonth = value!);
-              _fetchSalesData();
-            },
-          ),
-          const SizedBox(height: 12),
-          _buildFilterDropdown(
-            value: _selectedYear!,
-            items: _years,
-            onChanged: (value) {
-              setState(() => _selectedYear = value!);
-              _fetchSalesData();
-            },
-          ),
-        ],
-      );
-    } else {
-      // 🔹 Year filter - only show year selector
       return _buildFilterDropdown(
         value: _selectedYear!,
         items: _years,
@@ -569,6 +544,9 @@ class _AdminSalesInsightsState extends State<AdminSalesInsights> {
           _fetchSalesData();
         },
       );
+    } else {
+      // Year - no filters needed
+      return const SizedBox();
     }
   }
 
@@ -638,119 +616,122 @@ class _AdminSalesInsightsState extends State<AdminSalesInsights> {
         ? 0.0
         : values.reduce((a, b) => a > b ? a : b);
 
-    return SingleChildScrollView(
-      controller: _chartScrollController,
-      scrollDirection: Axis.horizontal,
-      child: Column(
-        children: [
-          SizedBox(
-            width: _chartData.length * 60.0,
-            height: 230,
-            child: Stack(
-              children: [
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: List.generate(
-                    5,
-                    (index) => Container(height: 1, color: Colors.grey[200]),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: SingleChildScrollView(
+        controller: _chartScrollController,
+        scrollDirection: Axis.horizontal,
+        child: Column(
+          children: [
+            SizedBox(
+              width: _chartData.length * 50.0,
+              height: 230,
+              child: Stack(
+                children: [
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: List.generate(
+                      5,
+                      (index) => Container(height: 1, color: Colors.grey[200]),
+                    ),
                   ),
-                ),
-                Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: _chartData.map((data) {
-                      final value = (data['value'] as num).toDouble();
-                      final height = maxValue > 0
-                          ? (value / maxValue) * 185.0
-                          : 0.0;
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: _chartData.map((data) {
+                        final value = (data['value'] as num).toDouble();
+                        final height = maxValue > 0
+                            ? (value / maxValue) * 185.0
+                            : 0.0;
 
-                      return SizedBox(
-                        width: 60,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              if (value > 0)
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 4),
-                                  child: Text(
-                                    value >= 1000
-                                        ? '${(value / 1000).toStringAsFixed(1)}K'
-                                        : value.toStringAsFixed(0),
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.grey[700],
+                        return SizedBox(
+                          width: 50,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                if (value > 0)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 4),
+                                    child: Text(
+                                      value >= 1000
+                                          ? '${(value / 1000).toStringAsFixed(1)}K'
+                                          : value.toStringAsFixed(0),
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.grey[700],
+                                      ),
                                     ),
                                   ),
-                                ),
-                              Container(
-                                width: 40,
-                                height: height,
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.bottomCenter,
-                                    end: Alignment.topCenter,
-                                    colors: [
-                                      AppColors.admin,
-                                      AppColors.admin.withOpacity(0.7),
+                                Container(
+                                  width: 34,
+                                  height: height,
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.bottomCenter,
+                                      end: Alignment.topCenter,
+                                      colors: [
+                                        AppColors.admin,
+                                        AppColors.admin.withOpacity(0.7),
+                                      ],
+                                    ),
+                                    borderRadius: const BorderRadius.only(
+                                      topLeft: Radius.circular(8),
+                                      topRight: Radius.circular(8),
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: AppColors.admin.withOpacity(0.3),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
+                                      ),
                                     ],
                                   ),
-                                  borderRadius: const BorderRadius.only(
-                                    topLeft: Radius.circular(8),
-                                    topRight: Radius.circular(8),
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: AppColors.admin.withOpacity(0.3),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: _chartData.length * 50.0,
+              child: Column(
+                children: [
+                  Container(height: 2, color: Colors.grey[300]),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: _chartData.map((data) {
+                      final label = data['label']?.toString() ?? '';
+                      return SizedBox(
+                        width: 50,
+                        child: Text(
+                          label,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
                           ),
                         ),
                       );
                     }).toList(),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: _chartData.length * 60.0,
-            child: Column(
-              children: [
-                Container(height: 2, color: Colors.grey[300]),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: _chartData.map((data) {
-                    final label = data['label']?.toString() ?? '';
-                    return SizedBox(
-                      width: 60,
-                      child: Text(
-                        label,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
