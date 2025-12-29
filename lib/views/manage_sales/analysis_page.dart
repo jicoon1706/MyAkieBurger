@@ -40,13 +40,13 @@ class _AnalysisPageState extends State<AnalysisPage> {
 
   // Sample data for chart
   final List<Map<String, dynamic>> _chartData = [
-    {'day': 'M', 'value': 120},
-    {'day': 'T', 'value': 180},
-    {'day': 'W', 'value': 250},
-    {'day': 'T', 'value': 280},
-    {'day': 'F', 'value': 380},
-    {'day': 'S', 'value': 300},
-    {'day': 'S', 'value': 150},
+    {'day': 'M', 'value': 0},
+    {'day': 'T', 'value': 0},
+    {'day': 'W', 'value': 0},
+    {'day': 'T', 'value': 0},
+    {'day': 'F', 'value': 0},
+    {'day': 'S', 'value': 0},
+    {'day': 'S', 'value': 0},
   ];
 
   @override

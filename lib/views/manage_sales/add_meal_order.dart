@@ -6,6 +6,8 @@ import 'package:myakieburger/domains/user_model.dart';
 import 'package:myakieburger/providers/meal_order_controller.dart';
 import 'package:myakieburger/domains/meal_order_model.dart';
 import 'package:myakieburger/widgets/custom_snackbar.dart';
+import 'package:myakieburger/providers/ingredients_controller.dart';
+import 'package:myakieburger/domains/ingredients_model.dart';
 
 class AddMealOrder extends StatefulWidget {
   const AddMealOrder({super.key});
@@ -22,6 +24,29 @@ class _AddMealOrderState extends State<AddMealOrder> {
   List<OrderItem> orderItems = [];
   OrderItem? pendingItem;
   final TextEditingController notesController = TextEditingController();
+
+  // 🔹 New: Store ingredient stock levels
+  Map<String, int> ingredientStock = {};
+  bool isLoadingIngredients = true;
+
+  // 🔹 Minimum threshold map (same as in BalancedIngredients)
+  static const Map<String, int> ingredientMinimumThreshold = {
+    'Roti (pieces)': 10,
+    'Roti Oblong': 8,
+    'Roti Hotdog': 8,
+    'Ayam (80g)': 15,
+    'Ayam Oblong': 10,
+    'Daging (80g)': 15,
+    'Daging Oblong': 10,
+    'Daging Smokey (100g)': 10,
+    'Daging Exotic': 8,
+    'Daging Kambing': 8,
+    'Daging Kambing (70g)': 8,
+    'Kambing Oblong': 8,
+    'Sosej': 12,
+    'Cheese': 10,
+    'Telur': 20,
+  };
 
   final List<String> categories = ['Chicken', 'Meat', 'Others'];
 
@@ -90,27 +115,143 @@ class _AddMealOrderState extends State<AddMealOrder> {
             isLoadingUser = false;
           });
           print('✅ Franchisee loaded: ${user.stallName} (ID: ${user.id})');
+
+          // 🔹 Load ingredient stock levels
+          await _loadIngredientStock(user.id);
         } else {
           setState(() {
             isLoadingUser = false;
+            isLoadingIngredients = false;
           });
           print('⚠️ User not found in database');
         }
       } else {
         setState(() {
           isLoadingUser = false;
+          isLoadingIngredients = false;
         });
         print('⚠️ No logged-in user ID found');
       }
     } catch (e) {
       setState(() {
         isLoadingUser = false;
+        isLoadingIngredients = false;
       });
       print('❌ Error loading franchisee info: $e');
     }
   }
 
+  // 🔹 New: Load ingredient stock from Firestore
+  Future<void> _loadIngredientStock(String userId) async {
+    try {
+      final controller = IngredientsController();
+      final ingredients = await controller.getIngredients(userId);
+
+      setState(() {
+        ingredientStock = {
+          for (var ingredient in ingredients)
+            ingredient.name: ingredient.balance,
+        };
+        isLoadingIngredients = false;
+      });
+
+      print('✅ Loaded ${ingredientStock.length} ingredient stock levels');
+    } catch (e) {
+      setState(() {
+        isLoadingIngredients = false;
+      });
+      print('❌ Error loading ingredient stock: $e');
+    }
+  }
+
+  // 🔹 New: Check if menu item has sufficient stock
+  bool _hasStock(String category, String menuName) {
+    final recipeKey = IngredientsController.findMatchingRecipeKey(
+      category,
+      menuName,
+    );
+    if (recipeKey == null) return true; // If no recipe found, allow ordering
+
+    final recipe = IngredientsController.recipeMap[recipeKey];
+    if (recipe == null) return true;
+
+    // Check if all required ingredients are available
+    for (var entry in recipe.entries) {
+      final ingredientName = entry.key;
+      final requiredAmount = entry.value;
+      final availableStock = ingredientStock[ingredientName] ?? 0;
+
+      if (availableStock < requiredAmount) {
+        return false; // Out of stock
+      }
+    }
+
+    return true; // All ingredients available
+  }
+
+  // 🔹 New: Check if menu item is low on stock
+  bool _isLowStock(String category, String menuName) {
+    final recipeKey = IngredientsController.findMatchingRecipeKey(
+      category,
+      menuName,
+    );
+    if (recipeKey == null) return false;
+
+    final recipe = IngredientsController.recipeMap[recipeKey];
+    if (recipe == null) return false;
+
+    // Check if any required ingredient is low
+    for (var entry in recipe.entries) {
+      final ingredientName = entry.key;
+      final availableStock = ingredientStock[ingredientName] ?? 0;
+      final threshold = ingredientMinimumThreshold[ingredientName] ?? 5;
+
+      if (availableStock > 0 && availableStock <= threshold) {
+        return true; // Low stock
+      }
+    }
+
+    return false;
+  }
+
+  // 🔹 New: Check add-on stock availability
+  bool _hasAddOnStock(String addOnName) {
+    if (addOnName == 'None') return true;
+
+    final ingredientName = IngredientsController.addOnIngredientMap[addOnName];
+    if (ingredientName == null) return true;
+
+    final availableStock = ingredientStock[ingredientName] ?? 0;
+    return availableStock > 0;
+  }
+
+  // 🔹 New: Check if add-on is low stock
+  bool _isAddOnLowStock(String addOnName) {
+    if (addOnName == 'None') return false;
+
+    final ingredientName = IngredientsController.addOnIngredientMap[addOnName];
+    if (ingredientName == null) return false;
+
+    final availableStock = ingredientStock[ingredientName] ?? 0;
+    final threshold = ingredientMinimumThreshold[ingredientName] ?? 5;
+
+    return availableStock > 0 && availableStock <= threshold;
+  }
+
   void selectMenuItem(String itemName) {
+    final category = _getCategoryForItem(itemName);
+
+    // 🔹 Check stock before allowing selection
+    if (!_hasStock(category, itemName)) {
+      CustomSnackbar.show(
+        context,
+        message: 'Sorry, $itemName is out of stock',
+        backgroundColor: Colors.red,
+        icon: Icons.inventory_2_outlined,
+      );
+      return;
+    }
+
     final menuItem = menuItems.firstWhere((item) => item.name == itemName);
     setState(() {
       pendingItem = OrderItem(itemName, 1, [], menuItem.price);
@@ -119,6 +260,17 @@ class _AddMealOrderState extends State<AddMealOrder> {
 
   void addAddOn(String addOnName) {
     if (pendingItem != null && addOnName != 'None') {
+      // 🔹 Check add-on stock before adding
+      if (!_hasAddOnStock(addOnName)) {
+        CustomSnackbar.show(
+          context,
+          message: 'Sorry, $addOnName is out of stock',
+          backgroundColor: Colors.red,
+          icon: Icons.inventory_2_outlined,
+        );
+        return;
+      }
+
       setState(() {
         if (!pendingItem!.addOns.contains(addOnName)) {
           pendingItem!.addOns.add(addOnName);
@@ -198,8 +350,6 @@ class _AddMealOrderState extends State<AddMealOrder> {
       orderItems[index].quantity++;
     });
   }
-
-  // In your _completeOrder method in AddMealOrder, make this change:
 
   Future<void> _completeOrder() async {
     if (franchiseeId == null) {
@@ -303,7 +453,7 @@ class _AddMealOrderState extends State<AddMealOrder> {
   Widget build(BuildContext context) {
     final totalPrice = calculateTotalPrice();
 
-    if (isLoadingUser) {
+    if (isLoadingUser || isLoadingIngredients) {
       return Container(
         height: MediaQuery.of(context).size.height * 0.85,
         decoration: const BoxDecoration(
@@ -569,57 +719,135 @@ class _AddMealOrderState extends State<AddMealOrder> {
                       .where((item) => item.category == selectedCategory)
                       .toList();
                   final item = filteredItems[index];
-                  return GestureDetector(
-                    onTap: () => selectMenuItem(item.name),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          height: 55,
-                          width: 55,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.15),
-                                blurRadius: 5,
-                                offset: const Offset(0, 3),
+
+                  // 🔹 Check stock levels
+                  final hasStock = _hasStock(item.category, item.name);
+                  final isLowStock = _isLowStock(item.category, item.name);
+
+                  return Opacity(
+                    opacity: hasStock ? 1.0 : 0.5, // 🔹 Dim out of stock items
+                    child: GestureDetector(
+                      onTap: hasStock
+                          ? () => selectMenuItem(item.name)
+                          : null, // 🔹 Disable if no stock
+                      child: Stack(
+                        children: [
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                height: 55,
+                                width: 55,
+                                decoration: BoxDecoration(
+                                  color: !hasStock
+                                      ? Colors
+                                            .grey[400] // 🔹 Grey for out of stock
+                                      : isLowStock
+                                      ? Colors
+                                            .orange // 🔹 Orange for low stock
+                                      : Colors
+                                            .white, // 🔹 White for normal stock
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: isLowStock && hasStock
+                                      ? Border.all(
+                                          color: Colors.orange[700]!,
+                                          width: 2,
+                                        )
+                                      : null,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.15),
+                                      blurRadius: 5,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ],
+                                ),
+                                child: Icon(
+                                  hasStock ? Icons.fastfood : Icons.block,
+                                  color: !hasStock
+                                      ? Colors.white
+                                      : isLowStock
+                                      ? Colors.orange[900]
+                                      : const Color(0xFFB83D2A),
+                                  size: 26,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              SizedBox(
+                                width: 70,
+                                child: Text(
+                                  item.displayName,
+                                  textAlign: TextAlign.center,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    height: 1.1,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'RM ${item.price.toStringAsFixed(2)}',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ],
                           ),
-                          child: const Icon(
-                            Icons.fastfood,
-                            color: Color(0xFFB83D2A),
-                            size: 26,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        SizedBox(
-                          width: 70,
-                          child: Text(
-                            item.displayName,
-                            textAlign: TextAlign.center,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              height: 1.1,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
+                          // 🔹 Stock status badge
+                          if (!hasStock)
+                            Positioned(
+                              top: 0,
+                              right: 0,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text(
+                                  'OUT',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            )
+                          else if (isLowStock)
+                            Positioned(
+                              top: 0,
+                              right: 0,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange[700],
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text(
+                                  'LOW',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'RM ${item.price.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   );
                 },
@@ -879,79 +1107,155 @@ class _AddMealOrderState extends State<AddMealOrder> {
                     final isSelected = pendingItem!.addOns.contains(addOn.name);
                     final isNone = addOn.name == 'None';
 
-                    return GestureDetector(
-                      onTap: () {
-                        if (isNone) {
-                          setState(() {
-                            pendingItem!.addOns.clear();
-                          });
-                        } else {
-                          if (isSelected) {
-                            removeAddOn(addOn.name);
-                          } else {
-                            addAddOn(addOn.name);
-                          }
-                        }
-                      },
-                      child: Column(
-                        children: [
-                          Container(
-                            height: 65,
-                            width: 65,
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? Colors.white
-                                  : const Color(0xFFB83D2A),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: Colors.white,
-                                width: isSelected ? 3 : 1,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.2),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 3),
+                    // 🔹 Check add-on stock
+                    final hasStock = _hasAddOnStock(addOn.name);
+                    final isLowStock = _isAddOnLowStock(addOn.name);
+
+                    return Opacity(
+                      opacity: (hasStock || isNone)
+                          ? 1.0
+                          : 0.5, // 🔹 Dim out of stock
+                      child: GestureDetector(
+                        onTap: (hasStock || isNone)
+                            ? () {
+                                if (isNone) {
+                                  setState(() {
+                                    pendingItem!.addOns.clear();
+                                  });
+                                } else {
+                                  if (isSelected) {
+                                    removeAddOn(addOn.name);
+                                  } else {
+                                    addAddOn(addOn.name);
+                                  }
+                                }
+                              }
+                            : null, // 🔹 Disable if no stock
+                        child: Stack(
+                          children: [
+                            Column(
+                              children: [
+                                Container(
+                                  height: 65,
+                                  width: 65,
+                                  decoration: BoxDecoration(
+                                    color: !hasStock && !isNone
+                                        ? Colors
+                                              .grey[400] // 🔹 Grey for out of stock
+                                        : isLowStock && !isNone
+                                        ? Colors
+                                              .orange // 🔹 Orange for low stock
+                                        : isSelected
+                                        ? Colors.white
+                                        : const Color(0xFFB83D2A),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: isLowStock && hasStock && !isNone
+                                          ? Colors.orange[700]!
+                                          : Colors.white,
+                                      width: isSelected ? 3 : 1,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.2),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 3),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Icon(
+                                    !hasStock && !isNone
+                                        ? Icons.block
+                                        : isSelected || isNone
+                                        ? Icons.check_circle
+                                        : Icons.add_circle_outline,
+                                    color: !hasStock && !isNone
+                                        ? Colors.white
+                                        : isLowStock && !isNone
+                                        ? Colors.orange[900]
+                                        : isSelected
+                                        ? const Color(0xFFB83D2A)
+                                        : Colors.white,
+                                    size: 30,
+                                  ),
                                 ),
+                                const SizedBox(height: 4),
+                                Flexible(
+                                  child: Text(
+                                    addOn.displayName,
+                                    textAlign: TextAlign.center,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      height: 1.1,
+                                      color: Colors.white,
+                                      fontWeight: isSelected
+                                          ? FontWeight.bold
+                                          : FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                                if (!isNone)
+                                  Text(
+                                    '+${addOn.price.toStringAsFixed(2)}',
+                                    style: const TextStyle(
+                                      fontSize: 9,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                               ],
                             ),
-                            child: Icon(
-                              isSelected || isNone
-                                  ? Icons.check_circle
-                                  : Icons.add_circle_outline,
-                              color: isSelected
-                                  ? const Color(0xFFB83D2A)
-                                  : Colors.white,
-                              size: 30,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Flexible(
-                            child: Text(
-                              addOn.displayName,
-                              textAlign: TextAlign.center,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 10,
-                                height: 1.1,
-                                color: Colors.white,
-                                fontWeight: isSelected
-                                    ? FontWeight.bold
-                                    : FontWeight.w500,
+                            // 🔹 Stock status badge for add-ons
+                            if (!hasStock && !isNone)
+                              Positioned(
+                                top: 0,
+                                right: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Text(
+                                    'OUT',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 7,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            else if (isLowStock && !isNone)
+                              Positioned(
+                                top: 0,
+                                right: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange[700],
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Text(
+                                    'LOW',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 7,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                          if (!isNone)
-                            Text(
-                              '+${addOn.price.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                fontSize: 9,
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                        ],
+                          ],
+                        ),
                       ),
                     );
                   },

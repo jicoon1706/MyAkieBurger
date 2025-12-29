@@ -21,7 +21,8 @@ class FranchiseeHomepageState extends State<FranchiseeHomepage> {
   final MealOrderController _controller = MealOrderController();
   final IngredientsController _ingredientsController =
       IngredientsController(); // <--- NEW CONTROLLER INSTANCE
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance; // Add Firestore instance
+  final FirebaseFirestore _firestore =
+      FirebaseFirestore.instance; // Add Firestore instance
 
   // Make this assignable in initState
   late final StallAIService _aiService;
@@ -37,34 +38,37 @@ class FranchiseeHomepageState extends State<FranchiseeHomepage> {
   bool _isLoading = true;
 
   @override
-void initState() {
-  super.initState();
+  void initState() {
+    super.initState();
 
-  // Initialize StallAIService with both controllers
-  _aiService = StallAIService(_ingredientsController, _controller);
+    // Initialize StallAIService with both controllers
+    _aiService = StallAIService(_ingredientsController, _controller);
 
     // Load user data first, then sales data
     _loadUserData().then((_) {
       _loadSalesData();
     });
-}
+  }
 
-   Future<void> _loadUserData() async {
+  Future<void> _loadUserData() async {
     try {
       // Get franchisee ID from auth service
       final franchiseeId = await getLoggedInUserId();
-      
+
       if (franchiseeId == null) {
         print('❌ No franchisee ID found in auth service');
         return;
       }
 
       // Fetch user data from Firestore
-      final userDoc = await _firestore.collection('users').doc(franchiseeId).get();
-      
+      final userDoc = await _firestore
+          .collection('users')
+          .doc(franchiseeId)
+          .get();
+
       if (userDoc.exists) {
         final userData = userDoc.data();
-        
+
         if (mounted) {
           setState(() {
             _franchiseeId = franchiseeId;
@@ -72,7 +76,7 @@ void initState() {
             _stallName = userData?['stall_name'] ?? 'My Akie Burger Stall';
           });
         }
-        
+
         print('✅ User data loaded:');
         print('   - Franchisee ID: $_franchiseeId');
         print('   - Franchisee Name: $_franchiseeName');
@@ -133,7 +137,7 @@ void initState() {
     await _loadSalesData();
   }
 
-   void _showAIForecast() async {
+  void _showAIForecast() async {
     if (_franchiseeId == null) {
       print('❌ Cannot show AI forecast: franchiseeId is null');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -154,8 +158,9 @@ void initState() {
 
     try {
       // Get ingredients for this specific franchisee
-      final ingredientsList =
-          await _ingredientsController.getIngredients(_franchiseeId!);
+      final ingredientsList = await _ingredientsController.getIngredients(
+        _franchiseeId!,
+      );
 
       final List<Map<String, dynamic>> ingredientsData = ingredientsList
           .map(
@@ -170,7 +175,7 @@ void initState() {
       print('   - Franchisee ID: $_franchiseeId');
       print('   - Stall Name: $_stallName');
       print('   - Ingredients Count: ${ingredientsData.length}');
-      
+
       // Generate forecast with franchisee-specific data
       final forecast = await _aiService.generateDigitalTwinInsights(
         predictedSales: 1050,
@@ -185,16 +190,14 @@ void initState() {
         showModalBottomSheet(
           context: context,
           isScrollControlled: true,
-          builder: (context) => AIForecast(
-            forecastData: forecast, 
-            stallName: _stallName,
-          ),
+          builder: (context) =>
+              AIForecast(forecastData: forecast, stallName: _stallName),
         );
       }
     } catch (e) {
       if (mounted) Navigator.pop(context);
       print("❌ Error fetching AI Forecast or Inventory: $e");
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error loading forecast: ${e.toString()}'),
@@ -203,7 +206,7 @@ void initState() {
       );
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final todayDate = DateFormat('dd/MM').format(DateTime.now());
@@ -458,16 +461,16 @@ void initState() {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showAIForecast,
-        icon: const Icon(Icons.psychology_alt),
-        label: const Text('AI Forecast', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-        elevation: 4,
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      // floatingActionButton: FloatingActionButton.extended(
+      //   onPressed: _showAIForecast,
+      //   icon: const Icon(Icons.psychology_alt),
+      //   label: const Text('AI Forecast', style: TextStyle(fontWeight: FontWeight.bold)),
+      //   backgroundColor: Colors.black,
+      //   foregroundColor: Colors.white,
+      //   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+      //   elevation: 4,
+      // ),
+      // floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 }

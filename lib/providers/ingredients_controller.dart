@@ -82,6 +82,12 @@ class IngredientsController {
       final quantity = item['quantity'] as int;
       final price = (item['unit_price'] as num).toDouble();
 
+      // ✅ Prevent negative quantity
+      if (quantity < 0) {
+        print('⚠️ Skipping negative quantity for $ingredientName');
+        continue;
+      }
+
       // Find the existing ingredient document by name
       final ingredientQuery = await _firestore
           .collection('users')
@@ -96,13 +102,20 @@ class IngredientsController {
         final data = ingredientQuery.docs.first.data();
 
         // Calculate new values
-        final newReceived = (data['received'] ?? 0) + quantity;
-        final newBalance = (data['balance'] ?? 0) + quantity;
+        final currentReceived = data['received'] ?? 0;
+        final currentBalance = data['balance'] ?? 0;
+
+        final newReceived = currentReceived + quantity;
+        final newBalance = currentBalance + quantity;
+
+        // ✅ Ensure values are not negative
+        final safeReceived = newReceived < 0 ? 0 : newReceived;
+        final safeBalance = newBalance < 0 ? 0 : newBalance;
 
         // Add update operation to the transaction
         transaction.update(docRef, {
-          'received': newReceived,
-          'balance': newBalance,
+          'received': safeReceived,
+          'balance': safeBalance,
           'price': price, // Update price to the latest received price
           'updated_at': formattedDate,
         });
@@ -121,11 +134,11 @@ class IngredientsController {
         transaction.set(newDocRef, {
           'name': ingredientName,
           'price': price,
-          'received': quantity,
+          'received': quantity < 0 ? 0 : quantity, // ✅ Protected
           'used': 0,
           'damaged': 0,
           'eat': 0,
-          'balance': quantity,
+          'balance': quantity < 0 ? 0 : quantity, // ✅ Protected
           'updated_at': formattedDate,
         });
         print(
@@ -145,6 +158,9 @@ class IngredientsController {
         'dd/MM/yyyy HH:mm',
       ).format(DateTime.now());
 
+      // ✅ Ensure balance is never negative
+      final safeBalance = ingredient.balance < 0 ? 0 : ingredient.balance;
+
       final ingredientRef = _firestore
           .collection('users')
           .doc(franchiseeId)
@@ -154,11 +170,11 @@ class IngredientsController {
       await ingredientRef.set({
         'name': ingredient.name,
         'price': ingredient.price,
-        'received': ingredient.received,
-        'used': ingredient.used,
-        'damaged': ingredient.damaged,
-        'eat': ingredient.eat,
-        'balance': ingredient.balance,
+        'received': ingredient.received < 0 ? 0 : ingredient.received,
+        'used': ingredient.used < 0 ? 0 : ingredient.used,
+        'damaged': ingredient.damaged < 0 ? 0 : ingredient.damaged,
+        'eat': ingredient.eat < 0 ? 0 : ingredient.eat,
+        'balance': safeBalance, // ✅ Protected balance
         'updated_at': formattedDate,
       }, SetOptions(merge: true));
     } catch (e) {
@@ -184,8 +200,6 @@ class IngredientsController {
       rethrow;
     }
   }
-
-  
 
   /// 🔹 Deduct ingredients based on meal order
   Future<void> deductIngredientsForOrder(
@@ -262,14 +276,17 @@ class IngredientsController {
           final newUsed = currentUsed + amountToDeduct;
           final newBalance = currentBalance - amountToDeduct;
 
+          // ✅ Prevent negative balance
+          final safeBalance = newBalance < 0 ? 0 : newBalance;
+
           batch.update(doc.reference, {
             'used': newUsed,
-            'balance': newBalance,
+            'balance': safeBalance, // ✅ Protected balance
             'updated_at': formattedDate,
           });
 
           print(
-            '✅ Updated $ingredientName: used +$amountToDeduct, balance -$amountToDeduct',
+            '✅ Updated $ingredientName: used +$amountToDeduct, balance: $currentBalance → $safeBalance',
           );
         } else {
           print('⚠️ Ingredient "$ingredientName" not found in database');

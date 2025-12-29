@@ -4,6 +4,7 @@ import 'package:myakieburger/widgets/custom_snackbar.dart';
 import 'package:myakieburger/domains/ingredients_model.dart';
 import 'package:myakieburger/providers/ingredients_controller.dart';
 import 'package:myakieburger/services/auth_service.dart';
+import 'package:myakieburger/widgets/custom_loading_dialog.dart';
 
 class EditIngredients extends StatefulWidget {
   const EditIngredients({super.key});
@@ -24,6 +25,42 @@ class _EditIngredientsState extends State<EditIngredients> {
     _initializeData();
   }
 
+  Future<void> _saveAll() async {
+    if (franchiseeId == null) return;
+
+    // Show loading dialog
+    CustomLoadingDialog.show(context, message: 'Updating Ingredients...');
+
+    try {
+      for (var item in ingredients) {
+        await _controller.updateIngredient(franchiseeId!, item);
+      }
+
+      // Close the loading dialog
+      CustomLoadingDialog.hide(context);
+
+      if (mounted) {
+        Navigator.pop(context);
+        CustomSnackbar.show(
+          context,
+          message: 'Ingredients updated successfully!',
+        );
+      }
+    } catch (e) {
+      // Hide loading dialog on error
+      CustomLoadingDialog.hide(context);
+
+      if (mounted) {
+        CustomSnackbar.show(
+          context,
+          message: 'Failed to update ingredients: $e',
+          backgroundColor: Colors.red,
+          icon: Icons.error_outline,
+        );
+      }
+    }
+  }
+
   Future<void> _initializeData() async {
     final id = await getLoggedInUserId();
     if (id != null) {
@@ -41,70 +78,138 @@ class _EditIngredientsState extends State<EditIngredients> {
   }
 
   void _recalculateBalanced(int index) {
-    final item = ingredients[index];
-    final received = item.received;
-    final damaged = item.damaged;
-    final eat = item.eat;
-    final used = item.used;
+  final item = ingredients[index];
+  final received = item.received;
+  final damaged = item.damaged;
+  final eat = item.eat;
+  final used = item.used;
 
-    // Fixed formula: received - damaged - eat - used = balanced
-    final balanced = received - damaged - eat - used;
-    setState(() {
-      ingredients[index] = IngredientModel(
-        id: item.id,
-        name: item.name,
-        price: item.price,
-        received: item.received,
-        used: item.used,
-        damaged: item.damaged,
-        eat: item.eat,
-        balance: balanced < 0 ? 0 : balanced,
-        updatedAt: item.updatedAt,
-      );
-    });
-  }
+  // Fixed formula: received - damaged - eat - used = balanced
+  // Ensure balance cannot be negative
+  final balanced = received - damaged - eat - used;
+  setState(() {
+    ingredients[index] = IngredientModel(
+      id: item.id,
+      name: item.name,
+      price: item.price,
+      received: item.received,
+      used: item.used,
+      damaged: item.damaged,
+      eat: item.eat,
+      balance: balanced < 0 ? 0 : balanced, // ✅ Already preventing negative
+      updatedAt: item.updatedAt,
+    );
+  });
+}
 
   void _editValue(BuildContext context, int index, String fieldName) {
-    final controller = TextEditingController(
-      text: _getFieldValue(index, fieldName).toString(),
-    );
+  final controller = TextEditingController(
+    text: _getFieldValue(index, fieldName).toString(),
+  );
 
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(
-            'Edit ${fieldName[0].toUpperCase()}${fieldName.substring(1)}',
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: Text(
+          'Edit ${fieldName[0].toUpperCase()}${fieldName.substring(1)}',
+        ),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Enter new value',
+            border: OutlineInputBorder(),
           ),
-          content: TextField(
-            controller: controller,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: 'Enter new value',
-              border: OutlineInputBorder(),
-            ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final newValue = int.tryParse(controller.text) ?? 0;
-                setState(() {
-                  ingredients[index] = _updateField(index, fieldName, newValue);
-                });
-                _recalculateBalanced(index);
-                Navigator.pop(context);
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        );
-      },
-    );
-  }
+          ElevatedButton(
+            onPressed: () {
+              final newValue = int.tryParse(controller.text) ?? 0;
+              
+              // ✅ Prevent negative values
+              if (newValue < 0) {
+                CustomSnackbar.show(
+                  context,
+                  message: 'Value cannot be negative!',
+                  backgroundColor: Colors.red,
+                  icon: Icons.error_outline,
+                );
+                return;
+              }
+
+              // ✅ Check if the new value would cause negative balance
+              final item = ingredients[index];
+              int potentialBalance = 0;
+              
+              switch (fieldName) {
+                case 'received':
+                  potentialBalance = newValue - item.damaged - item.eat - item.used;
+                  break;
+                case 'damaged':
+                  potentialBalance = item.received - newValue - item.eat - item.used;
+                  break;
+                case 'eat':
+                  potentialBalance = item.received - item.damaged - newValue - item.used;
+                  break;
+                case 'used':
+                  potentialBalance = item.received - item.damaged - item.eat - newValue;
+                  break;
+              }
+
+              // ✅ Warn if balance would be negative
+              if (potentialBalance < 0) {
+                showDialog(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Warning'),
+                    content: Text(
+                      'This change would result in a negative balance (${potentialBalance}).\n\n'
+                      'The balance will be set to 0. Do you want to continue?',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Cancel'),
+                      ),
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(ctx); // Close warning dialog
+                          setState(() {
+                            ingredients[index] = _updateField(index, fieldName, newValue);
+                          });
+                          _recalculateBalanced(index);
+                          Navigator.pop(context); // Close edit dialog
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange,
+                        ),
+                        child: const Text('Continue'),
+                      ),
+                    ],
+                  ),
+                );
+                return;
+              }
+
+              // Normal save
+              setState(() {
+                ingredients[index] = _updateField(index, fieldName, newValue);
+              });
+              _recalculateBalanced(index);
+              Navigator.pop(context);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      );
+    },
+  );
+}
 
   int _getFieldValue(int index, String fieldName) {
     final item = ingredients[index];
@@ -135,21 +240,6 @@ class _EditIngredientsState extends State<EditIngredients> {
       balance: item.balance,
       updatedAt: item.updatedAt,
     );
-  }
-
-  Future<void> _saveAll() async {
-    if (franchiseeId == null) return;
-    for (var item in ingredients) {
-      await _controller.updateIngredient(franchiseeId!, item);
-    }
-
-    if (mounted) {
-      Navigator.pop(context);
-      CustomSnackbar.show(
-        context,
-        message: 'Ingredients updated successfully!',
-      );
-    }
   }
 
   @override

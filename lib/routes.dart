@@ -33,6 +33,7 @@ import 'package:myakieburger/views/manage_user/dagent_main_container.dart';
 import 'package:myakieburger/views/manage_user/dagent_profile.dart';
 
 import 'package:myakieburger/views/manage_user/franchisees_list.dart';
+import 'package:myakieburger/views/manage_sales/admin_sales_insights.dart';
 
 class Routes {
   static const String login = '/';
@@ -67,6 +68,7 @@ class Routes {
 
   static const String DAMainContainer = '/DAMainContainer';
   static const String DAProfile = '/DAProfile';
+  static const String adminSalesInsights = '/admin_sales_insights';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -74,6 +76,8 @@ class Routes {
         return MaterialPageRoute(builder: (_) => const LoginPage());
       case register:
         return MaterialPageRoute(builder: (_) => const RegisterPage());
+      case adminSalesInsights:
+        return MaterialPageRoute(builder: (_) => const AdminSalesInsights());
       case franchiseeHomepage:
         return MaterialPageRoute(builder: (_) => const FranchiseeHomepage());
       case franchiseeMainContainer:

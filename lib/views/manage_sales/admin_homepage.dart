@@ -78,7 +78,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
               child: IconButton(
                 icon: Icon(Icons.show_chart, color: AppColors.admin),
                 onPressed: () {
-                  Navigator.pushNamed(context, Routes.adminAnalysisPage);
+                  Navigator.pushNamed(context, Routes.adminSalesInsights);
                 },
               ),
             ),
