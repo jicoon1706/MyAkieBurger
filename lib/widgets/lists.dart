@@ -17,7 +17,6 @@ class Lists extends StatelessWidget {
     this.imagePath = 'assets/profile.png',
     this.useCalendarIcon = false, // 👈 default = false
     this.useProfileIcon = false, // 👈 default = false
-    
   });
 
   @override
@@ -47,7 +46,7 @@ class Lists extends StatelessWidget {
                 size: 22,
               ),
             )
-            else if (useProfileIcon)
+          else if (useProfileIcon)
             Container(
               width: 40,
               height: 40,
@@ -106,7 +105,7 @@ class Lists extends StatelessWidget {
 
           // Download button
           IconButton(
-            icon: const Icon(Icons.download, color: Colors.black),
+            icon: const Icon(Icons.arrow_forward_ios, color: Colors.black),
             onPressed: onDownload,
           ),
         ],

@@ -161,15 +161,6 @@ class _FranchiseesListState extends State<FranchiseesList> {
                         date: franchisee['date'], // 👈 show created_at date
                         imagePath: franchisee['image'],
                         useProfileIcon: true,
-                        onDownload: () {
-                          CustomSnackbar.show(
-                            context,
-                            message:
-                                'Downloading ${franchisee['username']} data...',
-                            backgroundColor: Colors.blue,
-                            icon: Icons.download,
-                          );
-                        },
                       ),
                     );
                   },

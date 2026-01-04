@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
 import 'package:myakieburger/widgets/custom_snackbar.dart';
+import 'package:myakieburger/widgets/custom_loading_dialog.dart';
 
 String hashPassword(String password) {
   return sha256.convert(utf8.encode(password)).toString();
@@ -76,10 +77,13 @@ class _RegisterPageState extends State<RegisterPage> {
 
   void _handleCreateAccount() async {
     if (_formKey.currentState!.validate()) {
+      // Show loading dialog
+      CustomLoadingDialog.show(context, message: 'Creating account...');
+
       final user = UserModel(
-        id: '', // Firestore will assign automatically if needed
+        id: '', // Firestore will assign automatically
         name: _nameController.text.trim(),
-        username: _usernameController.text.trim(), // 👈 added
+        username: _usernameController.text.trim(),
         email: _emailController.text.trim(),
         password: hashPassword(_passwordController.text.trim()),
         role: 'Franchisee',
@@ -94,21 +98,32 @@ class _RegisterPageState extends State<RegisterPage> {
       try {
         await userController.registerFranchisee(user);
 
-        CustomSnackbar.show(
-          context,
-          message: 'Franchisee account created successfully!',
-          backgroundColor: Colors.green,
-          icon: Icons.check,
-        );
+        // Hide loading dialog
+        CustomLoadingDialog.hide(context);
 
-        Navigator.pop(context);
+        if (mounted) {
+          CustomSnackbar.show(
+            context,
+            message:
+                'Account created successfully! Your ingredient inventory has been initialized.',
+            backgroundColor: Colors.green,
+            icon: Icons.check,
+          );
+
+          Navigator.pop(context);
+        }
       } catch (e) {
-        CustomSnackbar.show(
-          context,
-          message: 'Failed to register: $e',
-          backgroundColor: Colors.red,
-          icon: Icons.close,
-        );
+        // Hide loading dialog on error
+        CustomLoadingDialog.hide(context);
+
+        if (mounted) {
+          CustomSnackbar.show(
+            context,
+            message: 'Failed to register: $e',
+            backgroundColor: Colors.red,
+            icon: Icons.close,
+          );
+        }
       }
     }
   }

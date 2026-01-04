@@ -104,7 +104,10 @@ class _FranchiseeReportsState extends State<FranchiseeReports> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => ReportDetailsPage(report: report, isAdminView: true),
+                        builder: (context) => ReportDetailsPage(
+                          report: report,
+                          isAdminView: true,
+                        ),
                       ),
                     );
                   },
@@ -112,8 +115,6 @@ class _FranchiseeReportsState extends State<FranchiseeReports> {
                     name: report['stall_name'] ?? 'Unknown',
                     date: date,
                     useProfileIcon: true,
-                    onDownload: () =>
-                        _handleDownload(report['report_id'] ?? ''),
                   ),
                 );
               },

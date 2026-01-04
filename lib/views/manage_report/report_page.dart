@@ -152,14 +152,7 @@ class _ReportPageState extends State<ReportPage> {
                         child: Lists(
                           name: name,
                           date: date,
-                          onDownload: () {
-                            CustomSnackbar.show(
-                              context,
-                              message: 'Downloading report from $date...',
-                              backgroundColor: Colors.blueAccent,
-                              icon: Icons.download,
-                            );
-                          },
+                          
                         ),
                       );
                     },

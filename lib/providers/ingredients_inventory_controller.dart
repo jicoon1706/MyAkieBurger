@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:myakieburger/domains/ingredients_inventory_model.dart';
+import 'package:intl/intl.dart';
 
 class IngredientsInventoryController {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -8,16 +9,14 @@ class IngredientsInventoryController {
   Future<List<IngredientInventory>> fetchIngredients() async {
     final snapshot = await _db.collection('ingredients').get();
 
-print("Fetched ${snapshot.docs.length} ingredients from Firestore");
+    print("Fetched ${snapshot.docs.length} ingredients from Firestore");
 
-for (var doc in snapshot.docs) {
-  print("Ingredient: ${doc.id} → ${doc.data()}");
-}
-
+    for (var doc in snapshot.docs) {
+      print("Ingredient: ${doc.id} → ${doc.data()}");
+    }
 
     return snapshot.docs
-        .map((doc) =>
-            IngredientInventory.fromFirestore(doc.data(), doc.id))
+        .map((doc) => IngredientInventory.fromFirestore(doc.data(), doc.id))
         .toList();
   }
 
@@ -41,78 +40,68 @@ for (var doc in snapshot.docs) {
     });
   }
 
-  /// 🌟 New: Reduce stock for multiple items in a batch/transaction
-  Future<void> reduceStockBatch(
-    Transaction transaction,
-    List<dynamic> orderedIngredients,
-  ) async {
-    for (var item in orderedIngredients) {
-      final ingredientName = item['ingredient_name'] as String;
-      final quantity = item['quantity'] as int;
-      
-      // Look up the ingredient in the global 'ingredients' collection by name
-      final ingredientQuery = await _db
-          .collection('ingredients')
-          .where('name', isEqualTo: ingredientName)
-          .limit(1)
-          .get();
+  /// Reduce stock in batch (for approving orders)
+  Future<void> reduceStockBatch(List<dynamic> ingredients) async {
+    final batch = _db.batch(); // ✅ Changed from _firestore to _db
+    final formattedDate = DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now());
 
-      if (ingredientQuery.docs.isNotEmpty) {
-        final docRef = ingredientQuery.docs.first.reference;
-        final data = ingredientQuery.docs.first.data();
-        final currentStock = data['available'] ?? 0;
-        
-        if (currentStock < quantity) {
-          throw Exception("Factory: Not enough stock for $ingredientName. Available: $currentStock, Ordered: $quantity");
-        }
-
-        // Add update operation to the existing transaction
-        transaction.update(docRef, {
-          'available': currentStock - quantity,
-          'updated_at': FieldValue.serverTimestamp(),
-        });
-        print('⬇️ Factory inventory reduced: $ingredientName by $quantity');
-      } else {
-        print('⚠️ Factory inventory item $ingredientName not found. Skipping reduction.');
-      }
-    }
-  }
-
-  Future<void> returnCancelledStock(
-    Transaction transaction,
-    List<dynamic> orderedIngredients,
-  ) async {
-    for (var item in orderedIngredients) {
+    for (var item in ingredients) {
       final ingredientName = item['ingredient_name'] as String;
       final quantity = item['quantity'] as int;
 
-      // Look up the ingredient in the global 'ingredients' collection by name
-      final ingredientQuery = await _db
-          .collection('ingredients')
-          .where('name', isEqualTo: ingredientName)
-          .limit(1)
-          .get();
+      // ✅ Changed from _firestore to _db
+      final docRef = _db.collection('factory_inventory').doc(ingredientName);
+      final docSnapshot = await docRef.get();
 
-      if (ingredientQuery.docs.isNotEmpty) {
-        final docRef = ingredientQuery.docs.first.reference;
-        final data = ingredientQuery.docs.first.data();
-        final currentStock = data['available'] ?? 0;
-        
-        // Add quantity back to available stock
-        final newStock = currentStock + quantity;
+      if (docSnapshot.exists) {
+        final data = docSnapshot.data()!;
+        final currentAvailable = data['available'] ?? 0;
 
-        // Add update operation to the existing transaction
-        transaction.update(docRef, {
-          'available': newStock,
-          'updated_at': FieldValue.serverTimestamp(),
+        final newAvailable = currentAvailable - quantity;
+        final safeAvailable = newAvailable < 0 ? 0 : newAvailable;
+
+        batch.update(docRef, {
+          'available': safeAvailable,
+          'updated_at': formattedDate,
         });
-        print('⬆️ Factory inventory restocked: $ingredientName by $quantity');
-      } else {
-        print('⚠️ Factory inventory item $ingredientName not found. Cannot restock.');
+
+        print('✅ Factory: $ingredientName reduced by $quantity');
       }
     }
+
+    await batch.commit();
   }
 
+  /// Return cancelled stock (for cancelling approved orders)
+  Future<void> returnCancelledStock(List<dynamic> ingredients) async {
+    final batch = _db.batch(); // ✅ Changed from _firestore to _db
+    final formattedDate = DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now());
+
+    for (var item in ingredients) {
+      final ingredientName = item['ingredient_name'] as String;
+      final quantity = item['quantity'] as int;
+
+      // ✅ Changed from _firestore to _db
+      final docRef = _db.collection('factory_inventory').doc(ingredientName);
+      final docSnapshot = await docRef.get();
+
+      if (docSnapshot.exists) {
+        final data = docSnapshot.data()!;
+        final currentAvailable = data['available'] ?? 0;
+
+        final newAvailable = currentAvailable + quantity;
+
+        batch.update(docRef, {
+          'available': newAvailable,
+          'updated_at': formattedDate,
+        });
+
+        print('✅ Factory: $ingredientName restored by $quantity');
+      }
+    }
+
+    await batch.commit();
+  }
 
   Future<void> updateIngredientDetails(
     String ingredientId,
