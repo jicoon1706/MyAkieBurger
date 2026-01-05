@@ -6,8 +6,6 @@ import 'package:myakieburger/providers/meal_order_controller.dart';
 import 'package:myakieburger/providers/ingredients_controller.dart';
 import 'package:myakieburger/services/auth_service.dart';
 import 'package:myakieburger/views/manage_sales/meal_order_detail_popup.dart';
-import 'package:myakieburger/services/stall_ai_service.dart';
-import 'package:myakieburger/views/manage_sales/ai_forecast.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class FranchiseeHomepage extends StatefulWidget {
@@ -24,9 +22,6 @@ class FranchiseeHomepageState extends State<FranchiseeHomepage> {
   final FirebaseFirestore _firestore =
       FirebaseFirestore.instance; // Add Firestore instance
 
-  // Make this assignable in initState
-  late final StallAIService _aiService;
-
   String _stallName = 'Loading...'; // Initialize as loading
   String _franchiseeName = '';
 
@@ -40,10 +35,6 @@ class FranchiseeHomepageState extends State<FranchiseeHomepage> {
   @override
   void initState() {
     super.initState();
-
-    // Initialize StallAIService with both controllers
-    _aiService = StallAIService(_ingredientsController, _controller);
-
     // Load user data first, then sales data
     _loadUserData().then((_) {
       _loadSalesData();
@@ -135,76 +126,6 @@ class FranchiseeHomepageState extends State<FranchiseeHomepage> {
   // Pull-to-refresh handler
   Future<void> _onRefresh() async {
     await _loadSalesData();
-  }
-
-  void _showAIForecast() async {
-    if (_franchiseeId == null) {
-      print('❌ Cannot show AI forecast: franchiseeId is null');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please login again to access AI forecast'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) =>
-          const Center(child: CircularProgressIndicator(color: Colors.white)),
-    );
-
-    try {
-      // Get ingredients for this specific franchisee
-      final ingredientsList = await _ingredientsController.getIngredients(
-        _franchiseeId!,
-      );
-
-      final List<Map<String, dynamic>> ingredientsData = ingredientsList
-          .map(
-            (i) => {
-              'name': i.name,
-              'balance': (i.balance is num) ? i.balance : (i.balance ?? 0),
-            },
-          )
-          .toList();
-
-      print('📊 Generating AI forecast for:');
-      print('   - Franchisee ID: $_franchiseeId');
-      print('   - Stall Name: $_stallName');
-      print('   - Ingredients Count: ${ingredientsData.length}');
-
-      // Generate forecast with franchisee-specific data
-      final forecast = await _aiService.generateDigitalTwinInsights(
-        predictedSales: 1050,
-        ingredients: ingredientsData,
-        stallName: _stallName,
-        franchiseeId: _franchiseeId!,
-      );
-
-      if (mounted) Navigator.pop(context);
-
-      if (mounted) {
-        showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          builder: (context) =>
-              AIForecast(forecastData: forecast, stallName: _stallName),
-        );
-      }
-    } catch (e) {
-      if (mounted) Navigator.pop(context);
-      print("❌ Error fetching AI Forecast or Inventory: $e");
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error loading forecast: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
   }
 
   @override
