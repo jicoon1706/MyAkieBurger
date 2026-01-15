@@ -72,17 +72,28 @@ class IngredientsInventoryController {
     await batch.commit();
   }
 
-  /// Return cancelled stock (for cancelling approved orders)
+  /// Return cancelled stock to the Global Inventory
   Future<void> returnCancelledStock(List<dynamic> ingredients) async {
-    final batch = _db.batch(); // ✅ Changed from _firestore to _db
+    final batch = _db.batch();
     final formattedDate = DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now());
 
     for (var item in ingredients) {
+      // ✅ FIX: Use 'ingredient_id' to match the document ID used in reduceStock
+      // Fallback to name if ID is missing (though ID should exist from the order)
+      final ingredientId = item['ingredient_id'] as String?;
       final ingredientName = item['ingredient_name'] as String;
       final quantity = item['quantity'] as int;
 
-      // ✅ Changed from _firestore to _db
-      final docRef = _db.collection('factory_inventory').doc(ingredientName);
+      if (ingredientId == null) {
+        print(
+          "⚠️ Warning: Missing ingredient ID for $ingredientName during restock",
+        );
+        continue;
+      }
+
+      // ✅ FIX: Target the 'ingredients' collection (where stock was originally taken from)
+      // NOT 'factory_inventory'
+      final docRef = _db.collection('ingredients').doc(ingredientId);
       final docSnapshot = await docRef.get();
 
       if (docSnapshot.exists) {
@@ -93,10 +104,17 @@ class IngredientsInventoryController {
 
         batch.update(docRef, {
           'available': newAvailable,
-          'updated_at': formattedDate,
+          'updated_at': formattedDate, // Optional: if you store string dates
+          // 'updated_at': FieldValue.serverTimestamp(), // Better for Firestore
         });
 
-        print('✅ Factory: $ingredientName restored by $quantity');
+        print(
+          '✅ Global Inventory: $ingredientName ($ingredientId) restored by $quantity. New Total: $newAvailable',
+        );
+      } else {
+        print(
+          "❌ Error: Ingredient document $ingredientId not found in global inventory.",
+        );
       }
     }
 

@@ -78,6 +78,13 @@ class _IngredientOrderPageState extends State<IngredientOrderPage> {
     _loadFranchiseeName();
   }
 
+  // Helper to calculate total price dynamically for the UI
+  double _calculateTotalPrice() {
+    return _ingredientOrderItems.fold(0.0, (sum, item) {
+      return sum + (item.quantity * item.unitPrice);
+    });
+  }
+
   Future<void> _loadFranchiseeName() async {
     final franchiseeId = await getLoggedInUserId();
     if (franchiseeId == null) {
@@ -532,8 +539,9 @@ class _IngredientOrderPageState extends State<IngredientOrderPage> {
 
           // Submit Order Button
           CustomButton(
-            text: 'Submit Order',
-            onPressed: _submitOrder, // Call the new submission function
+            text:
+                'Submit Order - RM${_calculateTotalPrice().toStringAsFixed(2)}',
+            onPressed: _submitOrder,
           ),
 
           const SizedBox(height: 24),

@@ -179,10 +179,11 @@ class IngredientsOrderController {
         });
       });
 
-      // Restore factory stock AFTER transaction if needed
-      if (status == 'approved') {
+      // ✅ FIX: Restore stock for BOTH 'approved' AND 'pending' orders
+      // because stock was reduced immediately upon creation.
+      if (status == 'approved' || status == 'pending') {
         await _inventoryController.returnCancelledStock(ingredients);
-        print('✅ Factory inventory restored for cancelled order');
+        print('✅ Global inventory restored for cancelled order');
       }
 
       print('✅ Order cancelled successfully');
@@ -191,6 +192,7 @@ class IngredientsOrderController {
       rethrow;
     }
   }
+  
   Future<String> _generateOrderNumber() async {
     final now = DateTime.now();
     final dateStr =

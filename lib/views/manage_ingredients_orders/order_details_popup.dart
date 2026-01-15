@@ -76,7 +76,8 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
 
       CustomSnackbar.show(
         context,
-        message: 'Order approved! Factory inventory reduced. Ready for delivery.',
+        message:
+            'Order approved! Factory inventory reduced. Ready for delivery.',
         backgroundColor: Colors.green,
         icon: Icons.check_circle_outline,
       );
@@ -395,9 +396,18 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
 
                     // Action Buttons
                     if (widget.isDeliveryAgentView)
-                      _buildDeliveryAgentActions(status, isApproved, isDelivered)
+                      _buildDeliveryAgentActions(
+                        status,
+                        isApproved,
+                        isDelivered,
+                      )
                     else if (widget.isFactoryAdminView)
-                      _buildAdminActions(status, isPending, isApproved, isDelivered)
+                      _buildAdminActions(
+                        status,
+                        isPending,
+                        isApproved,
+                        isDelivered,
+                      )
                     else
                       _buildFranchiseeActions(isPending, isApproved),
                   ],
@@ -411,7 +421,11 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
   }
 
   // 🆕 Delivery Agent Actions
-  Widget _buildDeliveryAgentActions(String status, bool isApproved, bool isDelivered) {
+  Widget _buildDeliveryAgentActions(
+    String status,
+    bool isApproved,
+    bool isDelivered,
+  ) {
     if (isApproved) {
       // Show "Mark as Delivered" button for Approved orders
       return Column(
@@ -482,7 +496,12 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
   }
 
   // 🆕 Factory Admin Actions
-  Widget _buildAdminActions(String status, bool isPending, bool isApproved, bool isDelivered) {
+  Widget _buildAdminActions(
+    String status,
+    bool isPending,
+    bool isApproved,
+    bool isDelivered,
+  ) {
     if (isPending) {
       // Pending orders - Show Approve and Cancel buttons
       return Column(
@@ -618,48 +637,22 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
       );
     } else {
       // Approved/Delivered/Cancelled - show download and close
-      return Row(
-        children: [
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: () {
-                Navigator.pop(context);
-                CustomSnackbar.show(
-                  context,
-                  message: 'Downloading invoice...',
-                  backgroundColor: Colors.blueAccent,
-                  icon: Icons.download,
-                );
-              },
-              icon: const Icon(Icons.download),
-              label: const Text('Download'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: _accentColor,
-                side: BorderSide(color: _accentColor),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
+      // 👇 NEW CODE: Single Full-Width Close Button
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.check),
+          label: const Text('Close'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _primaryColor,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: ElevatedButton.icon(
-              onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.check),
-              label: const Text('Close'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _primaryColor,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       );
     }
   }
@@ -737,11 +730,7 @@ class _OrderDetailsPopupState extends State<OrderDetailsPopup> {
               color: _accentColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(
-              Icons.inventory_2,
-              color: _accentColor,
-              size: 20,
-            ),
+            child: Icon(Icons.inventory_2, color: _accentColor, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
