@@ -29,6 +29,7 @@ class _FadminIngredientsState extends State<FadminIngredients> {
       appBar: AppBar(
         backgroundColor: AppColors.factoryBlue,
         elevation: 0,
+        automaticallyImplyLeading: false,
         title: const Text(
           'Factory Ingredients',
           style: TextStyle(

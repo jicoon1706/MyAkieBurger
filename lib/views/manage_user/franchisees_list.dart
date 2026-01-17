@@ -77,6 +77,7 @@ class _FranchiseesListState extends State<FranchiseesList> {
       appBar: AppBar(
         backgroundColor: AppColors.admin,
         elevation: 0,
+        automaticallyImplyLeading: false,
         title: const Text(
           'List of Franchisees',
           style: TextStyle(

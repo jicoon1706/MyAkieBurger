@@ -55,6 +55,7 @@ class _FranchiseeReportsState extends State<FranchiseeReports> {
       appBar: AppBar(
         backgroundColor: AppColors.admin,
         elevation: 0,
+        automaticallyImplyLeading: false,
         title: const Text(
           'Franchisee Reports',
           style: TextStyle(
