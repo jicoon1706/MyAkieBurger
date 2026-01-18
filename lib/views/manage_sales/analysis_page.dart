@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:myakieburger/theme/app_colors.dart';
-import 'package:myakieburger/routes.dart';
 import 'package:myakieburger/services/auth_service.dart';
-import 'package:myakieburger/providers/meal_order_controller.dart';
+import 'package:myakieburger/providers/report_controller.dart';
+import 'package:myakieburger/widgets/custom_loading_dialog.dart';
+import 'package:intl/intl.dart';
 
 class AnalysisPage extends StatefulWidget {
   const AnalysisPage({super.key});
@@ -12,16 +13,26 @@ class AnalysisPage extends StatefulWidget {
 }
 
 class _AnalysisPageState extends State<AnalysisPage> {
+  final ReportController _reportController = ReportController();
+
+  // State Variables
+  String? _franchiseeId;
   String _selectedPeriod = 'Month';
   String? _selectedMonth;
   String? _selectedYear;
+  int? _selectedWeek;
 
-  final MealOrderController _mealOrderController = MealOrderController();
-
-  double? _totalSales; // holds fetched total sales
   bool _isLoading = false;
+  bool _isInitialLoad = true;
 
-  final List<String> _periods = ['Month', 'Year'];
+  // Data Variables
+  double _totalSales = 0.0;
+  int _totalOrders = 0;
+  int _totalMealsSold = 0;
+  List<Map<String, dynamic>> _chartData = [];
+
+  // Constants
+  final List<String> _periods = ['Week', 'Month', 'Year'];
   final List<String> _months = [
     'January',
     'February',
@@ -38,262 +49,312 @@ class _AnalysisPageState extends State<AnalysisPage> {
   ];
   final List<String> _years = ['2023', '2024', '2025', '2026'];
 
-  // Sample data for chart
-  final List<Map<String, dynamic>> _chartData = [
-    {'day': 'M', 'value': 0},
-    {'day': 'T', 'value': 0},
-    {'day': 'W', 'value': 0},
-    {'day': 'T', 'value': 0},
-    {'day': 'F', 'value': 0},
-    {'day': 'S', 'value': 0},
-    {'day': 'S', 'value': 0},
-  ];
+  final ScrollController _chartScrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    _selectedMonth = 'May';
-    _selectedYear = '2025';
-    _fetchSalesData(); // 🟢 load initial sales
+    // Set default filters to current date
+    _selectedMonth = DateFormat('MMMM').format(DateTime.now());
+    _selectedYear = DateTime.now().year.toString();
+    _selectedWeek = _getCurrentWeekOfMonth();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeData();
+    });
   }
 
-  String get _displayTitle {
-    if (_selectedPeriod == 'Month') {
-      return 'Monthly Sales ($_selectedYear)';
-    } else {
-      return 'Yearly Sales Overview';
+  @override
+  void dispose() {
+    _chartScrollController.dispose();
+    super.dispose();
+  }
+
+  int _getCurrentWeekOfMonth() {
+    final now = DateTime.now();
+    final firstDayOfMonth = DateTime(now.year, now.month, 1);
+    final daysSinceFirstDay = now.difference(firstDayOfMonth).inDays;
+    return (daysSinceFirstDay / 7).floor() + 1;
+  }
+
+  Future<void> _initializeData() async {
+    // 1. Get Franchisee ID
+    final userId = await getLoggedInUserId();
+
+    if (userId == null) {
+      // Handle error (e.g., redirect to login)
+      return;
+    }
+
+    setState(() {
+      _franchiseeId = userId;
+    });
+
+    if (mounted) {
+      CustomLoadingDialog.show(context, message: 'Loading Analysis...');
+    }
+
+    // 2. Fetch Data
+    await _fetchSalesData();
+
+    if (mounted) {
+      CustomLoadingDialog.hide(context);
+      setState(() {
+        _isInitialLoad = false;
+      });
     }
   }
-
-  final List<Map<String, dynamic>> _rankings = [
-    {'id': 'FE001', 'name': 'Tasik Chini', 'sales': 200.00},
-    {'id': 'FE005', 'name': 'Sri Kuantan', 'sales': 150.00},
-    {'id': 'FE009', 'name': 'Taman Perdana', 'sales': 100.00},
-    {'id': 'FE006', 'name': 'Alor Setar', 'sales': 50.00},
-    {'id': 'FE002', 'name': 'Gombak', 'sales': 20.00},
-  ];
 
   Future<void> _fetchSalesData() async {
     setState(() => _isLoading = true);
 
     try {
-      final franchiseeId = await getLoggedInUserId();
-      if (franchiseeId == null) {
-        print('❌ No logged-in user found.');
-        setState(() => _isLoading = false);
-        return;
+      // Fetch all reports
+      final allReports = await _reportController.getAllReports();
+
+      // Filter reports for ONLY this franchisee
+      final myReports = allReports
+          .where((r) => r['franchiseeId'] == _franchiseeId)
+          .toList();
+
+      if (_selectedPeriod == 'Week') {
+        await _processWeeklySales(myReports);
+      } else if (_selectedPeriod == 'Month') {
+        await _processMonthlySales(myReports);
+      } else {
+        await _processYearlySales(myReports);
       }
 
-      Map<String, dynamic> result = {};
-      List<Map<String, dynamic>> chartPoints = [];
-
-      if (_selectedPeriod == 'Month') {
-        final yearNumber = int.parse(_selectedYear!);
-        // Fetch sales per month for the selected year
-        for (int month = 1; month <= 12; month++) {
-          final data = await _mealOrderController.getSalesByMonth(
-            franchiseeId,
-            month,
-            yearNumber,
-          );
-          chartPoints.add({
-            'label': _months[month - 1].substring(0, 3), // Jan, Feb, ...
-            'value': data['totalSales'] ?? 0.0,
-          });
-        }
-        result['totalSales'] = chartPoints.fold(
-          0.0,
-          (sum, e) => sum + e['value'],
-        );
-      } else if (_selectedPeriod == 'Year') {
-        // Get all possible years with sales
-        chartPoints = [];
-        for (final y in _years) {
-          final data = await _mealOrderController.getSalesByYear(
-            franchiseeId,
-            int.parse(y),
-          );
-          final sales = data['totalSales'] ?? 0.0;
-          if (sales > 0) {
-            chartPoints.add({'label': y, 'value': sales});
-          }
-        }
-        result['totalSales'] = chartPoints.fold(
-          0.0,
-          (sum, e) => sum + e['value'],
-        );
-      }
-
-      setState(() {
-        _totalSales = result['totalSales'];
-        _chartData
-          ..clear()
-          ..addAll(chartPoints);
-        _isLoading = false;
-      });
-
-      print('✅ Total Sales: RM ${_totalSales!.toStringAsFixed(2)}');
+      setState(() => _isLoading = false);
     } catch (e) {
       print('❌ Error fetching sales data: $e');
       setState(() => _isLoading = false);
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // PROCESS LOGIC (Adapted for Single Franchisee)
+  // ---------------------------------------------------------------------------
+
+  Future<void> _processWeeklySales(List<Map<String, dynamic>> reports) async {
+    final monthIndex = _months.indexOf(_selectedMonth!) + 1;
+    final year = int.parse(_selectedYear!);
+
+    // Get date range
+    final firstDayOfMonth = DateTime(year, monthIndex, 1);
+    final startDate = firstDayOfMonth.add(
+      Duration(days: (_selectedWeek! - 1) * 7),
+    );
+    final endDate = startDate.add(const Duration(days: 6));
+
+    double totalSales = 0.0;
+    int totalOrders = 0;
+    int totalMealsSold = 0;
+    List<Map<String, dynamic>> dailyData = [];
+
+    // Initialize 7 days
+    for (int i = 0; i < 7; i++) {
+      final date = startDate.add(Duration(days: i));
+      dailyData.add({
+        'label': DateFormat('E').format(date),
+        'fullDate': DateFormat('dd/MM/yyyy').format(date),
+        'value': 0.0,
+      });
+    }
+
+    for (var report in reports) {
+      final reportDateStr = report['report_date'] as String?;
+      if (reportDateStr == null) continue;
+
+      try {
+        final reportDate = DateFormat('dd/MM/yyyy').parse(reportDateStr);
+
+        if (reportDate.isAfter(startDate.subtract(const Duration(days: 1))) &&
+            reportDate.isBefore(endDate.add(const Duration(days: 1)))) {
+          final sales = (report['total_sales'] as num?)?.toDouble() ?? 0.0;
+
+          totalSales += sales;
+          totalOrders += (report['total_orders'] as int? ?? 0);
+          totalMealsSold += (report['total_meals_sold'] as int? ?? 0);
+
+          // Add to chart
+          final dayIndex = reportDate.difference(startDate).inDays;
+          if (dayIndex >= 0 && dayIndex < 7) {
+            dailyData[dayIndex]['value'] =
+                (dailyData[dayIndex]['value'] as double) + sales;
+          }
+        }
+      } catch (e) {
+        print('Error parsing date: $e');
+      }
+    }
+
+    setState(() {
+      _totalSales = totalSales;
+      _totalOrders = totalOrders;
+      _totalMealsSold = totalMealsSold;
+      _chartData = dailyData;
+    });
+  }
+
+  Future<void> _processMonthlySales(List<Map<String, dynamic>> reports) async {
+    final year = int.parse(_selectedYear!);
+
+    double totalSales = 0.0;
+    int totalOrders = 0;
+    int totalMealsSold = 0;
+    Map<int, double> monthlySales = {};
+
+    // Initialize 12 months
+    for (int i = 1; i <= 12; i++) {
+      monthlySales[i] = 0.0;
+    }
+
+    for (var report in reports) {
+      final reportDateStr = report['report_date'] as String?;
+      if (reportDateStr == null) continue;
+
+      try {
+        final reportDate = DateFormat('dd/MM/yyyy').parse(reportDateStr);
+
+        if (reportDate.year == year) {
+          final sales = (report['total_sales'] as num?)?.toDouble() ?? 0.0;
+
+          totalSales += sales;
+          totalOrders += (report['total_orders'] as int? ?? 0);
+          totalMealsSold += (report['total_meals_sold'] as int? ?? 0);
+
+          final monthIndex = reportDate.month;
+          monthlySales[monthIndex] = (monthlySales[monthIndex] ?? 0.0) + sales;
+        }
+      } catch (e) {
+        print('Error parsing date: $e');
+      }
+    }
+
+    // Prepare chart data
+    final chartData = monthlySales.entries
+        .map(
+          (e) => {
+            'label': _months[e.key - 1].substring(0, 3),
+            'value': e.value,
+          },
+        )
+        .toList();
+
+    setState(() {
+      _totalSales = totalSales;
+      _totalOrders = totalOrders;
+      _totalMealsSold = totalMealsSold;
+      _chartData = chartData;
+    });
+  }
+
+  Future<void> _processYearlySales(List<Map<String, dynamic>> reports) async {
+    double totalSales = 0.0;
+    int totalOrders = 0;
+    int totalMealsSold = 0;
+    Map<String, double> yearlySales = {};
+
+    for (final year in _years) {
+      yearlySales[year] = 0.0;
+    }
+
+    for (var report in reports) {
+      final reportDateStr = report['report_date'] as String?;
+      if (reportDateStr == null) continue;
+
+      try {
+        final reportDate = DateFormat('dd/MM/yyyy').parse(reportDateStr);
+        final yearStr = reportDate.year.toString();
+
+        if (_years.contains(yearStr)) {
+          final sales = (report['total_sales'] as num?)?.toDouble() ?? 0.0;
+
+          totalSales += sales;
+          totalOrders += (report['total_orders'] as int? ?? 0);
+          totalMealsSold += (report['total_meals_sold'] as int? ?? 0);
+
+          yearlySales[yearStr] = (yearlySales[yearStr] ?? 0.0) + sales;
+        }
+      } catch (e) {
+        print('Error parsing date: $e');
+      }
+    }
+
+    final chartData = _years
+        .map((year) => {'label': year, 'value': yearlySales[year] ?? 0.0})
+        .toList();
+
+    setState(() {
+      _totalSales = totalSales;
+      _totalOrders = totalOrders;
+      _totalMealsSold = totalMealsSold;
+      _chartData = chartData;
+    });
+  }
+
+  String get _displayTitle {
+    if (_selectedPeriod == 'Week') {
+      return 'Week $_selectedWeek - $_selectedMonth $_selectedYear';
+    } else if (_selectedPeriod == 'Month') {
+      return 'Monthly Sales ($_selectedYear)';
+    } else {
+      return 'Yearly Sales Overview';
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // UI BUILD
+  // ---------------------------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
+    if (_isInitialLoad) {
+      return Scaffold(
+        backgroundColor: AppColors.primaryRed,
+        appBar: _buildAppBar(),
+        body: const SizedBox(),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.primaryRed,
-      appBar: AppBar(
-        backgroundColor: AppColors.primaryRed,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Analysis',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        centerTitle: true,
-      ),
+      appBar: _buildAppBar(),
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Title
               Text(
                 _displayTitle,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 8),
-
-              // Loading / Total Sales
-              // if (_isLoading)
-              //   const Center(
-              //     child: CircularProgressIndicator(color: Colors.white),
-              //   )
-              // else if (_totalSales != null)
-              //   Padding(
-              //     padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
-              //     child: Text(
-              //       'RM ${_totalSales!.toStringAsFixed(2)}',
-              //       style: const TextStyle(
-              //         color: Colors.white,
-              //         fontSize: 20,
-              //         fontWeight: FontWeight.bold,
-              //       ),
-              //     ),
-              //   ),
               const SizedBox(height: 16),
 
-              // Period Filter
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: DropdownButton<String>(
-                  value: _selectedPeriod,
-                  isExpanded: true,
-                  underline: const SizedBox(),
-                  icon: const Icon(Icons.keyboard_arrow_down),
-                  items: _periods.map((period) {
-                    return DropdownMenuItem(
-                      value: period,
-                      child: Text('Filter by $period'),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedPeriod = value!;
-                    });
-                    _fetchSalesData();
-                  },
-                ),
-              ),
+              // Summary Cards
+              _buildSummaryCards(),
+              const SizedBox(height: 20),
 
+              // Period Filter
+              _buildPeriodFilter(),
               const SizedBox(height: 12),
 
+              // Dynamic Filters
               _buildDynamicFilters(),
               const SizedBox(height: 20),
 
               // Chart
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: SizedBox(height: 300, child: _buildBarChart()),
-              ),
+              _buildChartContainer(),
 
-              const SizedBox(height: 24),
-
-              // Ranking Section
-              // Row(
-              //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              //   children: [
-              //     const Text(
-              //       'Sales Ranking',
-              //       style: TextStyle(
-              //         color: Colors.white,
-              //         fontSize: 18,
-              //         fontWeight: FontWeight.bold,
-              //       ),
-              //     ),
-              //     TextButton(
-              //       onPressed: () {
-              //         Navigator.pushNamed(
-              //           context,
-              //           Routes.franchiseesSalesLeaderboard,
-              //         );
-              //       },
-              //       child: const Text(
-              //         'View All',
-              //         style: TextStyle(
-              //           color: Colors.white,
-              //           fontSize: 14,
-              //           decoration: TextDecoration.underline,
-              //         ),
-              //       ),
-              //     ),
-              //   ],
-              // ),
-              // const SizedBox(height: 16),
-
-              // Container(
-              //   decoration: BoxDecoration(
-              //     color: Colors.white,
-              //     borderRadius: BorderRadius.circular(12),
-              //   ),
-              //   child: Column(
-              //     children: _rankings
-              //         .asMap()
-              //         .entries
-              //         .map(
-              //           (entry) => _buildRankingItem(
-              //             rank: entry.key + 1,
-              //             id: entry.value['id'],
-              //             name: entry.value['name'],
-              //             sales: entry.value['sales'],
-              //           ),
-              //         )
-              //         .toList(),
-              //   ),
-              // ),
+              // Bottom spacing
+              const SizedBox(height: 40),
             ],
           ),
         ),
@@ -301,30 +362,211 @@ class _AnalysisPageState extends State<AnalysisPage> {
     );
   }
 
+  AppBar _buildAppBar() {
+    return AppBar(
+      backgroundColor: AppColors.primaryRed,
+      elevation: 0,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back, color: Colors.white),
+        onPressed: () => Navigator.pop(context),
+      ),
+      title: const Text(
+        'My Sales Analysis',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 22,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      centerTitle: true,
+    );
+  }
+
+  Widget _buildSummaryCards() {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildSummaryCard(
+            'Total Sales',
+            'RM ${_totalSales.toStringAsFixed(2)}',
+            Icons.attach_money,
+            AppColors.lightRed, // Using lightRed for Franchisee theme
+          ),
+        ),
+        const SizedBox(width: 12),
+      ],
+    );
+  }
+
+  Widget _buildSummaryCard(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(
+          0.15,
+        ), // Slightly more opaque for red background
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                icon,
+                color: Colors.white,
+                size: 24,
+              ), // Icon white for better contrast on red
+              const Spacer(),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.8),
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPeriodFilter() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: DropdownButton<String>(
+        value: _selectedPeriod,
+        isExpanded: true,
+        underline: const SizedBox(),
+        icon: const Icon(
+          Icons.keyboard_arrow_down,
+          color: AppColors.primaryRed,
+        ),
+        items: _periods.map((period) {
+          return DropdownMenuItem(
+            value: period,
+            child: Text('Filter by $period'),
+          );
+        }).toList(),
+        onChanged: (value) {
+          setState(() {
+            _selectedPeriod = value!;
+          });
+          _fetchSalesData();
+        },
+      ),
+    );
+  }
+
   Widget _buildDynamicFilters() {
-    if (_selectedPeriod == 'Month') {
+    if (_selectedPeriod == 'Week') {
+      return Column(
+        children: [
+          _buildFilterDropdown(
+            value: _selectedMonth!,
+            items: _months,
+            onChanged: (value) {
+              setState(() => _selectedMonth = value!);
+              _fetchSalesData();
+            },
+          ),
+          const SizedBox(height: 12),
+          _buildFilterDropdown(
+            value: _selectedYear!,
+            items: _years,
+            onChanged: (value) {
+              setState(() => _selectedYear = value!);
+              _fetchSalesData();
+            },
+          ),
+          const SizedBox(height: 12),
+          _buildFilterDropdown(
+            value: 'Week $_selectedWeek',
+            items: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5'],
+            onChanged: (value) {
+              setState(() => _selectedWeek = int.parse(value!.split(' ')[1]));
+              _fetchSalesData();
+            },
+          ),
+        ],
+      );
+    } else if (_selectedPeriod == 'Month') {
       return _buildFilterDropdown(
-        label: 'Year',
         value: _selectedYear!,
         items: _years,
         onChanged: (value) {
           setState(() => _selectedYear = value!);
-          _fetchSalesData(); // refresh data
+          _fetchSalesData();
         },
       );
     } else {
-      // Period == Year
-      return const SizedBox(); // no filters for year mode
+      return const SizedBox();
     }
   }
 
-  // Add this as a class member at the top of _AnalysisPageState
-  final ScrollController _chartScrollController = ScrollController();
+  Widget _buildFilterDropdown({
+    required String value,
+    required List<String> items,
+    required Function(String?) onChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: DropdownButton<String>(
+        value: value,
+        isExpanded: true,
+        underline: const SizedBox(),
+        icon: const Icon(
+          Icons.keyboard_arrow_down,
+          color: AppColors.primaryRed,
+        ),
+        items: items.map((item) {
+          return DropdownMenuItem(value: item, child: Text(item));
+        }).toList(),
+        onChanged: onChanged,
+      ),
+    );
+  }
 
-  @override
-  void dispose() {
-    _chartScrollController.dispose();
-    super.dispose();
+  Widget _buildChartContainer() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: SizedBox(
+        height: 300,
+        child: _isLoading
+            ? const Center(
+                child: CircularProgressIndicator(color: AppColors.primaryRed),
+              )
+            : _buildBarChart(),
+      ),
+    );
   }
 
   Widget _buildBarChart() {
@@ -344,25 +586,25 @@ class _AnalysisPageState extends State<AnalysisPage> {
       );
     }
 
-    final List<double> values = _chartData
+    final values = _chartData
         .map((e) => (e['value'] as num).toDouble())
         .toList();
-    final double maxValue = values.reduce((a, b) => a > b ? a : b);
+    final maxValue = values.isEmpty
+        ? 0.0
+        : values.reduce((a, b) => a > b ? a : b);
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0), // prevent overflow
+      padding: const EdgeInsets.only(bottom: 8.0),
       child: SingleChildScrollView(
         controller: _chartScrollController,
         scrollDirection: Axis.horizontal,
         child: Column(
           children: [
-            // Chart area
             SizedBox(
               width: _chartData.length * 50.0,
               height: 230,
               child: Stack(
                 children: [
-                  // Horizontal grid lines
                   Column(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: List.generate(
@@ -370,17 +612,14 @@ class _AnalysisPageState extends State<AnalysisPage> {
                       (index) => Container(height: 1, color: Colors.grey[200]),
                     ),
                   ),
-
-                  // Bars
                   Align(
                     alignment: Alignment.bottomCenter,
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: _chartData.asMap().entries.map((entry) {
-                        final data = entry.value;
-                        final double value = (data['value'] as num).toDouble();
-                        final double height = maxValue > 0
+                      children: _chartData.map((data) {
+                        final value = (data['value'] as num).toDouble();
+                        final height = maxValue > 0
                             ? (value / maxValue) * 185.0
                             : 0.0;
 
@@ -442,10 +681,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
                 ],
               ),
             ),
-
             const SizedBox(height: 12),
-
-            // X-axis separator and labels
             SizedBox(
               width: _chartData.length * 50.0,
               child: Column(
@@ -475,105 +711,6 @@ class _AnalysisPageState extends State<AnalysisPage> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildFilterDropdown({
-    required String label,
-    required String value,
-    required List<String> items,
-    required Function(String?) onChanged,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: DropdownButton<String>(
-        value: value,
-        isExpanded: true,
-        underline: const SizedBox(),
-        icon: const Icon(Icons.keyboard_arrow_down),
-        items: items.map((item) {
-          return DropdownMenuItem(value: item, child: Text(item));
-        }).toList(),
-        onChanged: onChanged,
-      ),
-    );
-  }
-
-  Widget _buildRankingItem({
-    required int rank,
-    required String id,
-    required String name,
-    required double sales,
-  }) {
-    Color rankColor;
-    if (rank == 1) {
-      rankColor = AppColors.chartRed;
-    } else if (rank == 2) {
-      rankColor = AppColors.chartRed.withOpacity(0.8);
-    } else if (rank == 3) {
-      rankColor = AppColors.chartRed.withOpacity(0.6);
-    } else {
-      rankColor = AppColors.chartRed.withOpacity(0.4);
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: Colors.grey[200]!)),
-      ),
-      child: Row(
-        children: [
-          // Rank
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(color: rankColor, shape: BoxShape.circle),
-            child: Center(
-              child: Text(
-                rank.toString(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: Colors.grey[300],
-            child: const Icon(Icons.person, size: 24),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  id,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  name,
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            sales.toStringAsFixed(2),
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-        ],
       ),
     );
   }

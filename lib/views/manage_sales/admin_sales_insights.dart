@@ -420,14 +420,6 @@ class _AdminSalesInsightsState extends State<AdminSalesInsights> {
           ),
         ),
         const SizedBox(width: 12),
-        Expanded(
-          child: _buildSummaryCard(
-            'Orders',
-            _totalOrders.toString(),
-            Icons.shopping_cart,
-            const Color(0xFF6C63FF),
-          ),
-        ),
       ],
     );
   }

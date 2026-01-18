@@ -1,8 +1,8 @@
-// admin_homepage.dart
 import 'package:flutter/material.dart';
 import 'package:myakieburger/theme/app_colors.dart';
 import 'package:myakieburger/routes.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart'; // 1. Import Intl for date formatting
 
 class AdminHomepage extends StatefulWidget {
   const AdminHomepage({super.key});
@@ -14,31 +14,75 @@ class AdminHomepage extends StatefulWidget {
 class _AdminHomepageState extends State<AdminHomepage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // 🆕 Add these state variables
+  // State variables
   int _totalFranchisees = 0;
+  double _currentMonthSales = 0.0; // 2. Variable for sales
+  String _currentMonthName = ''; // 3. Variable for month name
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadFranchiseesCount(); // 🆕 Load data on init
+    // Set current month name immediately (e.g., "May 2025")
+    _currentMonthName = DateFormat('MMMM yyyy').format(DateTime.now());
+    _loadDashboardData();
   }
 
-  // 🆕 Add this method to fetch franchisees count
+  Future<void> _loadDashboardData() async {
+    setState(() => _isLoading = true);
+
+    // Run both fetch operations in parallel
+    await Future.wait([_loadFranchiseesCount(), _loadCurrentMonthSales()]);
+
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
+  }
+
   Future<void> _loadFranchiseesCount() async {
     try {
-      final franchiseesSnapshot = await _firestore
+      final snapshot = await _firestore
           .collection('users')
           .where('role', isEqualTo: 'Franchisee')
           .get();
-
-      setState(() {
-        _totalFranchisees = franchiseesSnapshot.docs.length;
-        _isLoading = false;
-      });
+      _totalFranchisees = snapshot.docs.length;
     } catch (e) {
       print('❌ Error loading franchisees: $e');
-      setState(() => _isLoading = false);
+    }
+  }
+
+  // 4. New method to calculate sales
+  Future<void> _loadCurrentMonthSales() async {
+    try {
+      final now = DateTime.now();
+      double total = 0.0;
+
+      // Fetch all reports (filtering by string date on client side is safer given the format)
+      final snapshot = await _firestore.collection('reports_all').get();
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final dateStr = data['report_date'] as String?;
+        final sales = (data['total_sales'] as num?)?.toDouble() ?? 0.0;
+
+        if (dateStr != null) {
+          try {
+            // Parse 'dd/MM/yyyy'
+            final reportDate = DateFormat('dd/MM/yyyy').parse(dateStr);
+
+            // Check if report belongs to current Month and Year
+            if (reportDate.month == now.month && reportDate.year == now.year) {
+              total += sales;
+            }
+          } catch (e) {
+            print('Skipping invalid date: $dateStr');
+          }
+        }
+      }
+
+      _currentMonthSales = total;
+    } catch (e) {
+      print('❌ Error loading sales: $e');
     }
   }
 
@@ -54,7 +98,10 @@ class _AdminHomepageState extends State<AdminHomepage> {
           child: CircleAvatar(
             backgroundColor: Colors.white,
             child: IconButton(
-              icon: Icon(Icons.admin_panel_settings, color: AppColors.admin),
+              icon: const Icon(
+                Icons.admin_panel_settings,
+                color: AppColors.admin,
+              ),
               onPressed: () {
                 Navigator.pushNamed(context, Routes.adminProfile);
               },
@@ -76,7 +123,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
             child: CircleAvatar(
               backgroundColor: Colors.white,
               child: IconButton(
-                icon: Icon(Icons.show_chart, color: AppColors.admin),
+                icon: const Icon(Icons.show_chart, color: AppColors.admin),
                 onPressed: () {
                   Navigator.pushNamed(context, Routes.adminSalesInsights);
                 },
@@ -85,8 +132,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
           ),
         ],
       ),
-      body:
-          _isLoading // 🆕 Show loading state
+      body: _isLoading
           ? const Center(
               child: CircularProgressIndicator(color: AppColors.lightPurple),
             )
@@ -106,23 +152,27 @@ class _AdminHomepageState extends State<AdminHomepage> {
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
+                        children: [
                           Text(
-                            'Total Sales (May 2025)',
-                            style: TextStyle(color: Colors.white, fontSize: 16),
+                            'Total Sales ($_currentMonthName)', // 5. Dynamic Month
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                            ),
                           ),
-                          SizedBox(height: 8),
+                          const SizedBox(height: 8),
                           Text(
-                            'RM 15,240.00',
-                            style: TextStyle(
+                            'RM ${_currentMonthSales.toStringAsFixed(2)}', // 6. Dynamic Total
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 48,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          SizedBox(height: 4),
-                          Text(
-                            '↑ 12.5% from last month',
+                          const SizedBox(height: 4),
+                          // Optional: You can calculate growth percentage if you fetch previous month data
+                          const Text(
+                            'Current Month Performance',
                             style: TextStyle(
                               color: Colors.white70,
                               fontSize: 14,
@@ -140,7 +190,8 @@ class _AdminHomepageState extends State<AdminHomepage> {
                       value: _totalFranchisees.toString(),
                       color: const Color(0xFF6C63FF),
                       onTap: () {
-                        // Navigate to franchisees list if needed
+                        // Navigate to franchisees list if route exists
+                        // Navigator.pushNamed(context, Routes.franchiseesList);
                       },
                     ),
                   ],

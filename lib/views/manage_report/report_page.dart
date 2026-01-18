@@ -32,6 +32,76 @@ class _ReportPageState extends State<ReportPage> {
     });
   }
 
+  // 🔹 Logic to delete the report from Firestore
+  Future<void> _deleteReport(String reportId) async {
+    try {
+      // 1. Delete from the main 'reports_all' collection
+      await _firestore.collection('reports_all').doc(reportId).delete();
+
+      // 2. Remove the reference from the user's document (optional but good for cleanup)
+      if (_franchiseeId != null) {
+        await _firestore
+            .collection('users')
+            .doc(_franchiseeId)
+            .collection('references')
+            .doc('reports')
+            .update({
+              reportId: FieldValue.delete(), // Removes the specific field
+            })
+            .catchError((e) {
+              // Ignore error if the reference document doesn't exist or field is missing
+              print("Note: Reference cleanup skipped or failed: $e");
+            });
+      }
+
+      if (mounted) {
+        CustomSnackbar.show(
+          context,
+          message: 'Report deleted successfully',
+          backgroundColor: Colors.green,
+          icon: Icons.check_circle,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        CustomSnackbar.show(
+          context,
+          message: 'Error deleting report: $e',
+          backgroundColor: Colors.red,
+          icon: Icons.error,
+        );
+      }
+    }
+  }
+
+  // 🔹 Show confirmation dialog
+  void _showDeleteConfirmation(String reportId) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Report'),
+          content: const Text(
+            'Are you sure you want to delete this report? This action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(), // Cancel
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close dialog
+                _deleteReport(reportId); // Perform delete
+              },
+              child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Stream<List<Map<String, dynamic>>> _streamReports(String franchiseeId) {
     try {
       print('🔍 Streaming reports for franchiseeId: $franchiseeId');
@@ -68,17 +138,13 @@ class _ReportPageState extends State<ReportPage> {
           ),
         ),
       ),
-
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.accentRed,
         onPressed: () async {
-          // Navigate and wait for result
           await Navigator.pushNamed(context, Routes.addReport);
-          // No need to manually refresh - StreamBuilder handles it automatically!
         },
         child: const Icon(Icons.add, color: Colors.white),
       ),
-
       body: _franchiseeId == null
           ? const Center(child: CircularProgressIndicator(color: Colors.white))
           : StreamBuilder<List<Map<String, dynamic>>>(
@@ -134,11 +200,18 @@ class _ReportPageState extends State<ReportPage> {
                     itemBuilder: (context, index) {
                       final report = reports[index];
                       final date = report['report_date'] ?? 'Unknown Date';
+                      final reportId = report['report_id']; // Get the ID
                       final name = 'Sales Report';
 
                       return GestureDetector(
+                        // 🔹 Trigger delete popup on long press
+                        onLongPress: () {
+                          if (reportId != null) {
+                            _showDeleteConfirmation(reportId);
+                          }
+                        },
+                        // Navigate to details on tap
                         onTap: () {
-                          // Navigate to Report Details Page
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -149,11 +222,7 @@ class _ReportPageState extends State<ReportPage> {
                             ),
                           );
                         },
-                        child: Lists(
-                          name: name,
-                          date: date,
-                          
-                        ),
+                        child: Lists(name: name, date: date),
                       );
                     },
                   ),

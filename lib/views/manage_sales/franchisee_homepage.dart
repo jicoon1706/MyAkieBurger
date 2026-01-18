@@ -116,11 +116,17 @@ class FranchiseeHomepageState extends State<FranchiseeHomepage> {
     await _loadSalesData();
   }
 
-  void _showOrderDetails(Map<String, dynamic> orderData) {
-    showDialog(
+  void _showOrderDetails(Map<String, dynamic> orderData) async {
+    // Wait for result from popup
+    final result = await showDialog<bool>(
       context: context,
       builder: (context) => MealOrderDetailPopup(orderData: orderData),
     );
+
+    // If result is true (meaning deleted), refresh data
+    if (result == true) {
+      _loadSalesData();
+    }
   }
 
   // Pull-to-refresh handler

@@ -1,20 +1,100 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:myakieburger/theme/app_colors.dart';
+import 'package:myakieburger/providers/meal_order_controller.dart'; // Import Controller
+import 'package:myakieburger/widgets/custom_loading_dialog.dart'; // Import Loading Dialog
+import 'package:myakieburger/widgets/custom_snackbar.dart'; // Import Snackbar
 
-class MealOrderDetailPopup extends StatelessWidget {
+class MealOrderDetailPopup extends StatefulWidget {
   final Map<String, dynamic> orderData;
 
   const MealOrderDetailPopup({super.key, required this.orderData});
 
   @override
+  State<MealOrderDetailPopup> createState() => _MealOrderDetailPopupState();
+}
+
+class _MealOrderDetailPopupState extends State<MealOrderDetailPopup> {
+  final MealOrderController _controller = MealOrderController();
+
+  Future<void> _handleDelete() async {
+    final orderId = widget.orderData['mealOrderId'];
+    final franchiseeId = widget.orderData['franchiseeId'];
+
+    // Cast meals list safely
+    final rawMeals = widget.orderData['meals'] as List<dynamic>? ?? [];
+    final List<Map<String, dynamic>> meals = rawMeals
+        .map((m) => Map<String, dynamic>.from(m))
+        .toList();
+
+    if (orderId == null || franchiseeId == null) {
+      CustomSnackbar.show(
+        context,
+        message: "Error: Invalid Order Data",
+        backgroundColor: Colors.red,
+      );
+      return;
+    }
+
+    // Show Confirmation Dialog
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Order?'),
+        content: const Text(
+          'This will delete the order record and RESTORE the ingredients to your inventory. This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      CustomLoadingDialog.show(context, message: "Deleting Order...");
+
+      try {
+        await _controller.deleteMealOrder(orderId, franchiseeId, meals);
+
+        if (mounted) {
+          CustomLoadingDialog.hide(context);
+          CustomSnackbar.show(
+            context,
+            message: "Order deleted and stock restored!",
+            backgroundColor: Colors.green,
+          );
+          // Return true to indicate an update happened
+          Navigator.pop(context, true);
+        }
+      } catch (e) {
+        if (mounted) {
+          CustomLoadingDialog.hide(context);
+          CustomSnackbar.show(
+            context,
+            message: "Failed to delete: $e",
+            backgroundColor: Colors.red,
+          );
+        }
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final meals = orderData['meals'] as List<dynamic>? ?? [];
-    final totalAmount = orderData['total_amount'] ?? 0.0;
-    final notes = orderData['notes'] as String? ?? '';
-    final createdAt = orderData['created_at'] as String? ?? '';
-    final orderId = orderData['mealOrderId'] ?? 'N/A';
-    final franchiseeName = orderData['franchisee_name'] ?? 'N/A';
+    // ... existing variable extractions ...
+    final meals = widget.orderData['meals'] as List<dynamic>? ?? [];
+    final totalAmount = widget.orderData['total_amount'] ?? 0.0;
+    final notes = widget.orderData['notes'] as String? ?? '';
+    final createdAt = widget.orderData['created_at'] as String? ?? '';
+    final orderId = widget.orderData['mealOrderId'] ?? 'N/A';
+    final franchiseeName = widget.orderData['franchisee_name'] ?? 'N/A';
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -84,22 +164,29 @@ class MealOrderDetailPopup extends StatelessWidget {
                       ],
                     ),
                   ),
+                  // 🗑️ DELETE BUTTON
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, color: Colors.white),
+                    tooltip: "Delete Order",
+                    onPressed: _handleDelete,
+                  ),
                   IconButton(
                     icon: const Icon(Icons.close, color: Colors.white),
-                    onPressed: () => Navigator.pop(context),
+                    // Return false (no change) when simply closing
+                    onPressed: () => Navigator.pop(context, false),
                   ),
                 ],
               ),
             ),
 
-            // Content
+            // Content (Same as before)
             Flexible(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Order Information
+                    // ... existing UI code for Info Section, Meals, Notes ...
                     _buildInfoSection('Order Information', [
                       _buildInfoRow(
                         Icons.calendar_today,
@@ -108,13 +195,9 @@ class MealOrderDetailPopup extends StatelessWidget {
                       ),
                       _buildInfoRow(Icons.store, 'Franchisee', franchiseeName),
                     ]),
-
                     const SizedBox(height: 20),
-
-                    // Meals List
                     _buildInfoSection('Items Ordered', []),
                     const SizedBox(height: 8),
-
                     if (meals.isEmpty)
                       const Center(
                         child: Padding(
@@ -129,9 +212,10 @@ class MealOrderDetailPopup extends StatelessWidget {
                         ),
                       )
                     else
-                      ...meals.map((meal) => _buildMealItem(meal)),
+                      ...meals.map(
+                        (meal) => _buildMealItem(meal),
+                      ), // Requires moving _buildMealItem to this class or helper
 
-                    // Notes Section
                     if (notes.isNotEmpty) ...[
                       const SizedBox(height: 20),
                       Container(
@@ -201,14 +285,14 @@ class MealOrderDetailPopup extends StatelessWidget {
                         ),
                       ],
                     ),
-
                     const SizedBox(height: 20),
-
-                    // Close Button
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: () => Navigator.pop(
+                          context,
+                          false,
+                        ), // Return false on close
                         icon: const Icon(Icons.check),
                         label: const Text('Close'),
                         style: ElevatedButton.styleFrom(
@@ -231,6 +315,8 @@ class MealOrderDetailPopup extends StatelessWidget {
     );
   }
 
+  // Copy helper widgets (_buildInfoSection, _buildInfoRow, _buildMealItem) from previous code here
+  // ...
   Widget _buildInfoSection(String title, List<Widget> children) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -282,10 +368,10 @@ class MealOrderDetailPopup extends StatelessWidget {
   }
 
   Widget _buildMealItem(dynamic meal) {
+    // ... (Keep the exact code for _buildMealItem from your previous snippet)
     final menuName = meal['menu_name'] ?? 'Unknown';
     final category = meal['category'] ?? '';
     final quantity = meal['quantity'] ?? 1;
-    final basePrice = meal['base_price'] ?? 0.0;
     final subtotal = meal['subtotal'] ?? 0.0;
     final addOns = meal['add_ons'] as List<dynamic>? ?? [];
 
@@ -300,7 +386,6 @@ class MealOrderDetailPopup extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Main Item Row
           Row(
             children: [
               Container(
@@ -346,8 +431,6 @@ class MealOrderDetailPopup extends StatelessWidget {
               ),
             ],
           ),
-
-          // Add-ons Section
           if (addOns.isNotEmpty) ...[
             const SizedBox(height: 12),
             Container(
@@ -358,56 +441,30 @@ class MealOrderDetailPopup extends StatelessWidget {
                 border: Border.all(color: Colors.grey[300]!),
               ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.add_circle_outline,
-                        size: 16,
-                        color: Colors.grey[700],
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Add-Ons',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey[700],
+                children: addOns.map((addOn) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 22),
+                        Expanded(
+                          child: Text(
+                            '• ${addOn['quantity']} × ${addOn['name']}',
+                            style: const TextStyle(fontSize: 12),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  ...addOns.map((addOn) {
-                    final name = addOn['name'] ?? '';
-                    final addOnQty = addOn['quantity'] ?? 1;
-                    final addOnSubtotal = addOn['subtotal'] ?? 0.0;
-
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Row(
-                        children: [
-                          const SizedBox(width: 22),
-                          Expanded(
-                            child: Text(
-                              '• $addOnQty × $name',
-                              style: const TextStyle(fontSize: 12),
-                            ),
+                        Text(
+                          '+RM ${(addOn['subtotal'] as num).toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[700],
                           ),
-                          Text(
-                            '+RM ${((addOnSubtotal is int) ? addOnSubtotal.toDouble() : addOnSubtotal).toStringAsFixed(2)}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey[700],
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                ],
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
               ),
             ),
           ],
@@ -415,5 +472,4 @@ class MealOrderDetailPopup extends StatelessWidget {
       ),
     );
   }
-
 }

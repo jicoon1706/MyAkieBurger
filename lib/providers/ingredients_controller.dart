@@ -129,6 +129,90 @@ class IngredientsController {
     return null;
   }
 
+  /// 🔹 Restore ingredients when a meal order is cancelled/deleted
+  Future<void> restoreIngredientsFromOrder(
+    String franchiseeId,
+    List<Map<String, dynamic>> meals,
+  ) async {
+    try {
+      final formattedDate = DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now());
+      Map<String, int> totalIngredientsToRestore = {};
+
+      // 1. Calculate total ingredients used in this order
+      for (var meal in meals) {
+        final category = meal['category'] as String;
+        final menuName = meal['menu_name'] as String;
+        final quantity = meal['quantity'] as int;
+        final addOns = meal['add_ons'] as List<dynamic>? ?? [];
+
+        // Calculate based on Recipe
+        final recipeKey = findMatchingRecipeKey(category, menuName);
+        final recipe = recipeKey != null ? recipeMap[recipeKey] : null;
+
+        if (recipe != null) {
+          recipe.forEach((ingredientName, amountPerItem) {
+            totalIngredientsToRestore[ingredientName] =
+                (totalIngredientsToRestore[ingredientName] ?? 0) +
+                (amountPerItem * quantity);
+          });
+        }
+
+        // Calculate based on Add-ons
+        for (var addOn in addOns) {
+          final addOnName = addOn['name'] as String;
+          final addOnQuantity = addOn['quantity'] as int? ?? 1;
+
+          final ingredientName = addOnIngredientMap[addOnName];
+          if (ingredientName != null) {
+            totalIngredientsToRestore[ingredientName] =
+                (totalIngredientsToRestore[ingredientName] ?? 0) +
+                (addOnQuantity * quantity); // usually 1 * 1, but handles scaling
+          }
+        }
+      }
+
+      // 2. Update Firestore (Batch operation)
+      final batch = _firestore.batch();
+
+      for (var entry in totalIngredientsToRestore.entries) {
+        final ingredientName = entry.key;
+        final amountToRestore = entry.value;
+
+        final docRef = _firestore
+            .collection('users')
+            .doc(franchiseeId)
+            .collection('ingredients')
+            .doc(ingredientName); 
+
+        final docSnapshot = await docRef.get();
+
+        if (docSnapshot.exists) {
+          final data = docSnapshot.data()!;
+          final currentUsed = data['used'] ?? 0;
+          final currentBalance = data['balance'] ?? 0;
+
+          // Reverse logic: Decrease 'used', Increase 'balance'
+          final newUsed = (currentUsed - amountToRestore) < 0 ? 0 : (currentUsed - amountToRestore);
+          final newBalance = currentBalance + amountToRestore;
+
+          batch.update(docRef, {
+            'used': newUsed,
+            'balance': newBalance,
+            'updated_at': formattedDate,
+          });
+
+          print('♻️ Restoring $ingredientName: +$amountToRestore to balance');
+        }
+      }
+
+      await batch.commit();
+      print('✅ Ingredients restored successfully.');
+    } catch (e) {
+      print('🔥 Error restoring ingredients: $e');
+      rethrow;
+    }
+  }
+
   Future<void> addReceivedIngredients(
     Transaction transaction,
     String franchiseeId,

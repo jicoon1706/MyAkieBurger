@@ -42,6 +42,31 @@ class MealOrderController {
   // Add these methods to your existing MealOrderController class
 // Place them near the end of the class, before the closing brace
 
+  /// 🔹 Delete a meal order and restore inventory
+  Future<void> deleteMealOrder(String orderId, String franchiseeId, List<Map<String, dynamic>> meals) async {
+    try {
+      // 1. Restore the ingredients first
+      await _ingredientsController.restoreIngredientsFromOrder(franchiseeId, meals);
+
+      // 2. Delete the order from the main collection
+      await _firestore.collection('meal_orders_all').doc(orderId).delete();
+
+      // 3. (Optional) Cleanup reference in user subcollection
+      await _firestore
+          .collection('users')
+          .doc(franchiseeId)
+          .collection('references')
+          .doc('meal_orders')
+          .update({orderId: FieldValue.delete()})
+          .catchError((e) => print("Ref cleanup skipped: $e")); // Ignore if ref doc doesn't exist
+
+      print("🗑️ Meal order $orderId deleted and stock restored.");
+    } catch (e) {
+      print("❌ Error deleting meal order: $e");
+      rethrow;
+    }
+  }
+
   /// 🔹 Get past sales data for AI forecasting (last 7 days)
   Future<List<Map<String, dynamic>>> getPastWeekSalesData(String franchiseeId) async {
     try {
